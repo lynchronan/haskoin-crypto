@@ -4,15 +4,27 @@ module Secp256k1
 , doublePoint
 ) where
 
-import PublicKey (Point(Point,InfPoint), doublePoint, addPoint)
-import PrivateKey (PrivateKey, runFn)
+import Data.Maybe (fromJust)
+
+import PublicKey 
+    ( Point(Point,InfPoint)
+    , PublicKey
+    , doublePoint
+    , addPoint
+    , makePoint
+    )
+import PrivateKey (PrivateKey ,runFn)
 import Data.Bits (shiftR, testBit)
 
 -- Elliptic curves of the form y^2 = x^3 + A*x + B (mod P)
 -- secp256k1 curve parameters (p,a,b,g,n,h) used in Bitcoin
 
-g :: Integer
-g = 0x0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798 
+g :: PublicKey
+g = fromJust $ makePoint
+        0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798       
+        0X483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8 
+
+--g = 0x0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798 
 
 h :: Integer
 h = 0x01

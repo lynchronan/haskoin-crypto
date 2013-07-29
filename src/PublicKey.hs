@@ -1,6 +1,7 @@
 module PublicKey
 ( PublicKey
 , Point(..)
+, Fp(..)
 , makePoint
 , addPoint
 , doublePoint

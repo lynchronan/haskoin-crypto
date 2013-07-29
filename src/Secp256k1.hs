@@ -12,6 +12,7 @@ import PublicKey
     , doublePoint
     , addPoint
     , makePoint
+    , getAffine , getX, getY
     )
 import PrivateKey (PrivateKey ,runFn)
 import Data.Bits (shiftR, testBit)

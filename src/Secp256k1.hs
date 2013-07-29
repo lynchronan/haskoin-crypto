@@ -1,6 +1,7 @@
 module Secp256k1
 ( addPoint
 , mulPoint
+, mulWithGen
 , doublePoint
 ) where
 
@@ -29,6 +30,9 @@ g = fromJust $ makePoint
 
 h :: Integer
 h = 0x01
+
+mulWithGen :: PrivateKey -> Point
+mulWithGen = mulPoint g
 
 -- Point multiplication using Montgomery ladder
 mulPoint :: Point -> PrivateKey -> Point

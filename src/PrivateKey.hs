@@ -1,6 +1,6 @@
 module PrivateKey
 ( PrivateKey
-, runFn
+, Fn(..)
 ) where
 
 import Data.Ratio (numerator, denominator)

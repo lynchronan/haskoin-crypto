@@ -53,8 +53,10 @@ data Point = Point Fp Fp Fp | InfPoint
     deriving Show
     
 instance Eq Point where
+    InfPoint == InfPoint = True
     (Point x1 y1 z1) == (Point x2 y2 z2) = 
         (x1*z2^2 == x2*z1^2) && (y1*z2^3 == y2*z1^3)
+    _ == _ = False
 
 makePoint :: Fp -> Fp -> Maybe Point
 makePoint x y
@@ -65,6 +67,7 @@ makePoint x y
 -- check if the point lies on the secp256k1 curve
 checkPoint :: Point -> Bool
 checkPoint point = case point of
+    InfPoint      -> True
     (Point 0 0 0) -> False
     (Point x y z) -> (y^2) == x^3 + b*z^6 -- a = 0
 

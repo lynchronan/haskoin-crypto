@@ -9,11 +9,16 @@ import PublicKey
 import PrivateKey
 import NumberTheory
 
+instance Arbitrary Fn where
+    arbitrary = fromInteger <$> (arbitrary :: Gen Integer)
+
 instance Arbitrary Fp where
-    arbitrary = Fp <$> arbitrary
+    arbitrary = fromInteger <$> (arbitrary :: Gen Integer)
 
 instance Arbitrary Point where
-    arbitrary = Point <$> arbitrary
-                      <*> arbitrary
-                      <*> arbitrary
+    arbitrary = frequency
+        [ (1, return InfPoint)
+        , (9, mulWithGen <$> (arbitrary :: Gen Fn))
+        ]
+
 

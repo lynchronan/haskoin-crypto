@@ -8,14 +8,22 @@ import PublicKey
 
 tests = 
     [ testGroup "PublicKey"
-        [ testProperty "P + InfPoint = P" (t1 :: Point -> Bool)
-        , testProperty "InfPoint + P = P" (t1' :: Point -> Bool)
+        [ testProperty "P is on the curve" checkOnCurve
+        , testProperty "P + InfPoint = P" addInfPoint
+        , testProperty "InfPoint + P = P" addInfPoint'
+        , testProperty "P1 + P2 = P2 + P1" addCommutative
         ]
     ]
 
-t1 :: Point -> Bool
-t1 p = addPoint p InfPoint == p
+checkOnCurve :: Point -> Bool
+checkOnCurve = checkPoint
 
-t1' :: Point -> Bool
-t1' p = addPoint InfPoint p == p
+addInfPoint :: Point -> Bool
+addInfPoint p = addPoint p InfPoint == p
+
+addInfPoint' :: Point -> Bool
+addInfPoint' p = addPoint InfPoint p == p
+
+addCommutative :: Point -> Point -> Bool
+addCommutative p1 p2 = addPoint p1 p2 == addPoint p2 p1
 

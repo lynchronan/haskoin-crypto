@@ -6,9 +6,11 @@ module PublicKey
 , addPoint
 , doublePoint
 , checkPoint
+, isInfPoint
 , getAffine
 , getX
 , getY
+, p
 ) where
 
 import Control.Applicative ((<$>))
@@ -48,7 +50,7 @@ instance Fractional Fp where
     fromRational r = (fromInteger (numerator r)) / (fromInteger (denominator r))
 
 -- Point in Jacobian coordinates (x=X/Z^2, y=Y/Z^3)
--- Z = 0 is a point at infinity but we use InfPoint for more clarity
+-- Z = 0 is a point at infinity 
 data Point = Point Fp Fp Fp | InfPoint
     deriving Show
     
@@ -63,6 +65,12 @@ makePoint x y
     | checkPoint point = Just point
     | otherwise = Nothing
     where point = Point x y 1
+
+isInfPoint :: Point -> Bool
+isInfPoint point = case point of
+    InfPoint      -> True
+    (Point _ _ 0) -> True
+    otherwise     -> False
 
 -- check if the point lies on the secp256k1 curve
 checkPoint :: Point -> Bool

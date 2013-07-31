@@ -4,21 +4,17 @@ import Control.Applicative ((<$>), (<*>))
 
 import Test.QuickCheck
 
-import Secp256k1
-import PublicKey
-import PrivateKey
+import Point
+import Ring
+import ECDSA
 import NumberTheory
 
-instance Arbitrary Fn where
-    arbitrary = fromInteger <$> (arbitrary :: Gen Integer)
-
-instance Arbitrary Fp where
+instance RingMod n => Arbitrary (Ring n) where
     arbitrary = fromInteger <$> (arbitrary :: Gen Integer)
 
 instance Arbitrary Point where
     arbitrary = frequency
-        [ (1, return InfPoint)
-        , (9, mulWithGen <$> (arbitrary :: Gen Fn))
+        [ (1, return makeInfPoint)
+        , (9, (mulPoint curveG) <$> (arbitrary :: Gen FieldN))
         ]
-
 

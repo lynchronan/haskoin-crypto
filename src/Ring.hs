@@ -5,8 +5,8 @@ module Ring
 , FieldN
 , curveN
 , curveP
-, Ring
-, RingMod
+, Ring(..)
+, RingMod(..)
 ) where
 
 import Data.Bits
@@ -63,7 +63,7 @@ instance RingMod n => Num (Ring n) where
     (Ring i1) * (Ring i2) = fromInteger $ i1 * i2
     negate (Ring i) = fromInteger $ negate i
     abs r = r
-    signum _ = 1
+    signum (Ring i) = fromInteger $ signum i
 
 instance RingMod n => Bits (Ring n) where
     (Ring i1) .&. (Ring i2) = fromInteger $ i1 .&. i2

@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Ring
 ( Hash256
 , Hash160
@@ -77,7 +78,13 @@ instance RingMod n => Bits (Ring n) where
     popCount (Ring i) = popCount i
     isSigned _ = False
 
-instance RingMod n => Fractional (Ring n) where
+{- Fractional is only defined for prime orders -}
+
+instance Fractional (Ring ModP) where
+    recip a@(Ring i) = fromInteger $ mulInverse i (rMod a)
+    fromRational r = (fromInteger (numerator r)) / (fromInteger (denominator r))
+
+instance Fractional (Ring ModN) where
     recip a@(Ring i) = fromInteger $ mulInverse i (rMod a)
     fromRational r = (fromInteger (numerator r)) / (fromInteger (denominator r))
 

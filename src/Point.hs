@@ -1,9 +1,9 @@
 module Point
-( Point
+( Point( InfPoint )
 , makePoint
 , makeInfPoint
 , getAffine, getX, getY
-, checkPoint
+, validatePoint
 , isInfPoint
 , addPoint
 , doublePoint
@@ -15,7 +15,6 @@ import Data.Bits (testBit, shiftR, bitSize)
 import Control.Applicative ((<$>))
 import Data.Ratio (numerator, denominator)
 
-import NumberTheory (extendedModGCD, mulInverse)
 import Ring (FieldP, FieldN)
 
 {- Elliptic curves of the form y^2 = x^3 + 7 (mod p) -}
@@ -41,7 +40,7 @@ instance Eq Point where
 -- Returns Nothing if the point doesn't lie on the curve
 makePoint :: FieldP -> FieldP -> Maybe Point
 makePoint x y
-    | checkPoint point = Just point
+    | validatePoint point = Just point
     | otherwise = Nothing
     where point = Point x y 1
 
@@ -61,12 +60,14 @@ getX point = fst <$> (getAffine point)
 getY :: Point -> Maybe FieldP
 getY point = snd <$> (getAffine point)
 
--- check if the point lies on the secp256k1 curve
-checkPoint :: Point -> Bool
-checkPoint point = case point of
-    InfPoint      -> True
-    (Point 0 0 0) -> False
-    (Point x y z) -> (y^2) == x^3 + curveB*z^6 -- a = 0
+-- Section 3.2.2.1 http://www.secg.org/download/aid-780/sec1-v2.pdf
+-- point 3.2.2.1.4 is not necessary as h=1
+validatePoint :: Point -> Bool
+validatePoint point = case getAffine point of
+    -- 3.2.2.1.1 (check that point not equal to InfPoint)
+    Nothing    -> False 
+    -- 3.2.2.1.2 (check that the point lies on the curve)
+    Just (x,y) -> y^2 == x^3 + curveB
 
 isInfPoint :: Point -> Bool
 isInfPoint point = case point of
@@ -105,11 +106,11 @@ doublePoint (Point x y z)
 
 -- Elliptic curve point multiplication using Montgomery ladder
 -- Todo: Check if Haskell lazy evaluation opens up side channel attacks
-mulPoint :: Point -> FieldN -> Point
-mulPoint point 0 = InfPoint
-mulPoint point 1 = point
-mulPoint InfPoint _ = InfPoint
-mulPoint point n = go InfPoint point ((bitSize n) - 1)
+mulPoint :: FieldN -> Point -> Point
+mulPoint 0 point = InfPoint
+mulPoint 1 point = point
+mulPoint _ InfPoint = InfPoint
+mulPoint n point = go InfPoint point ((bitSize n) - 1)
     where go r0 r1 i
             | i < 0       = r0
             | testBit n i = go (addPoint r0 r1) (doublePoint r1) (i - 1)

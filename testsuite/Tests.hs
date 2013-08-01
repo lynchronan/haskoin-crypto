@@ -147,13 +147,18 @@ ringIsSigned i = ring == model
 {- Public Key -}
 
 checkOnCurve :: Point -> Bool
-checkOnCurve = checkPoint
+checkOnCurve InfPoint = True
+checkOnCurve p = validatePoint p
 
 addOnCurve :: Point -> Point -> Bool
-addOnCurve p1 p2 = checkPoint $ addPoint p1 p2
+addOnCurve p1 p2 = case addPoint p1 p2 of
+    InfPoint -> True
+    p        -> validatePoint p
 
 mulOnCurve :: Point -> FieldN -> Bool
-mulOnCurve p1 n = checkPoint $ mulPoint p1 n
+mulOnCurve p1 n = case mulPoint n p1 of
+    InfPoint -> True
+    p        -> validatePoint p
 
 fromToAffine :: Point -> Property
 fromToAffine p = not (isInfPoint p) ==> (fromJust $ makePoint x y) == p
@@ -181,14 +186,14 @@ doubleAddPoint :: Point -> Bool
 doubleAddPoint p = doublePoint p == addPoint p p
 
 doubleMulPoint :: Point -> Bool
-doubleMulPoint p = doublePoint p == mulPoint p 2
+doubleMulPoint p = doublePoint p == mulPoint 2 p
 
-mulPointInduction :: Point -> FieldN -> Property
-mulPointInduction p i = i > 2 ==> 
-    mulPoint p i == addPoint p (mulPoint p (i-1))
+mulPointInduction :: FieldN -> Point -> Property
+mulPointInduction i p = i > 2 ==> 
+    mulPoint i p == addPoint p (mulPoint (i-1) p)
 
 mulDistributivity :: FieldN -> FieldN -> Point -> Bool
 mulDistributivity a b p = 
-    (addPoint (mulPoint p a) (mulPoint p b)) == mulPoint p (a + b)
+    (addPoint (mulPoint a p) (mulPoint b p)) == mulPoint (a + b) p
 
 

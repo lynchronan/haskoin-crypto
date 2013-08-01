@@ -14,7 +14,6 @@ type Test32  = Ring Mod32
 
 instance RingMod Mod32 where
     rFromInteger i = Ring $ i `mod` 2^32
-    rMod         _ = 2^32
     rBitSize     _ = 32
 
 instance RingMod n => Arbitrary (Ring n) where
@@ -23,6 +22,6 @@ instance RingMod n => Arbitrary (Ring n) where
 instance Arbitrary Point where
     arbitrary = frequency
         [ (1, return makeInfPoint)
-        , (9, (mulPoint curveG) <$> (arbitrary :: Gen FieldN))
+        , (9, (flip mulPoint $ curveG) <$> (arbitrary :: Gen FieldN))
         ]
 

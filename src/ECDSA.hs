@@ -108,7 +108,25 @@ unsafeSignMessage m d (k,p) = do
     guard (s /= 0)
     -- 4.1.3.7
     return (r,s)
-            
 
+-- Section 4.1.4 http://www.secg.org/download/aid-780/sec1-v2.pdf
+verifyMessage :: BS.ByteString -> Signature -> PublicKey -> Bool
+-- 4.1.4.1
+verifyMessage _ (0,_) _ = False
+verifyMessage _ (_,0) _ = False
+verifyMessage m (r,s) p = 
+        -- 4.1.4.2 / 4.1.4.3
+    let e  = toFieldN $ doubleSHA256 m
+        -- 4.1.4.4
+        u1 = e/s
+        u2 = r/s
+        -- 4.1.4.5
+        pR = addPoint (mulPoint u1 curveG) (mulPoint u2 p)
+        in case getAffine pR of
+            Nothing      -> False
+                            -- 4.1.4.7
+            (Just (x,y)) -> let v = toFieldN x
+                            -- 4.1.4.8
+                            in v == r
 
 

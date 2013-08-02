@@ -16,6 +16,7 @@ import Point
 import Ring
 import NumberTheory
 
+tests :: [Test]
 tests = 
     [ testGroup "Number Theory" 
         [ testProperty "a * inv(a) = 1 (mod p)" inverseMod

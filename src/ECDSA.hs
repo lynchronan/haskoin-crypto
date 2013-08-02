@@ -8,20 +8,28 @@ module ECDSA
 , withNonceDo
 ) where
 
-import Data.Maybe
-import Data.Binary.Get
-import Data.Binary.Put
-import qualified Data.Binary as B
+import Data.Maybe (fromJust)
+import Data.Binary.Put (runPut)
+import qualified Data.Binary as B (put)
+import Control.Monad (liftM, guard)
+import Control.Monad.State 
+    ( StateT
+    , evalStateT
+    , get, put
+    )
 
-import Control.Monad.State
-import Control.Applicative ((<$>))
-
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString as BS
-
-import Hash
+import Hash (doubleSHA256, toStrictBS)
 import Point 
+    ( Point
+    , getAffine, makePoint
+    , mulPoint, shamirsTrick
+    )
 import Ring 
+    ( Hash256
+    , FieldN
+    , toFieldN
+    , toMod256
+    )
 
 type PublicKey = Point
 type PrivateKey = FieldN
@@ -94,7 +102,7 @@ unsafeSignMessage :: Hash256 -> PrivateKey -> KeyPair -> Maybe Signature
 unsafeSignMessage _ 0 _ = Nothing
 unsafeSignMessage h d (k,p) = do
     -- 4.1.3.1 (4.1.3.2 not required)
-    (x,y) <- getAffine p
+    (x,_) <- getAffine p
     -- 4.1.3.3
     let r = toFieldN x
     guard (r /= 0)
@@ -115,7 +123,7 @@ verifyMessage h (r,s) q =
     case getAffine p of
         Nothing      -> False
         -- 4.1.4.7 / 4.1.4.8
-        (Just (x,y)) -> (toFieldN x) == r
+        (Just (x,_)) -> (toFieldN x) == r
     where 
         -- 4.1.4.2 / 4.1.4.3
         e  = toFieldN h

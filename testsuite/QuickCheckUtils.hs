@@ -3,18 +3,17 @@ module QuickCheckUtils where
 
 import Test.QuickCheck
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative ((<$>))
 
 import Point
 import Ring
 import ECDSA
-import NumberTheory
 
 data Mod32
 type Test32  = Ring Mod32
 
 instance RingMod Mod32 where
-    rFromInteger i = Ring $ i `mod` 2^32
+    rFromInteger i = Ring $ i `mod` 2 ^ (32 :: Integer)
     rBitSize     _ = 32
 
 instance RingMod n => Arbitrary (Ring n) where

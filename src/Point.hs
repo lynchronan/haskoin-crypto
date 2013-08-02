@@ -11,11 +11,8 @@ module Point
 , shamirsTrick
 ) where
 
-import Data.Maybe (fromJust)
 import Data.Bits (testBit, shiftR, bitSize)
 import Control.Applicative ((<$>))
-import Data.Ratio (numerator, denominator)
-
 import Ring (FieldP, FieldN, Ring(..))
 
 {- Elliptic curves of the form y^2 = x^3 + 7 (mod p) -}
@@ -32,10 +29,13 @@ data Point = Point FieldP FieldP FieldP | InfPoint
     deriving Show
     
 instance Eq Point where
-    InfPoint == InfPoint = True
-    (Point x1 y1 z1) == (Point x2 y2 z2) = 
-        (x1*z2^2 == x2*z1^2) && (y1*z2^3 == y2*z1^3)
-    _ == _ = False
+    InfPoint         == InfPoint         = True
+    (Point x1 y1 z1) == (Point x2 y2 z2) = a == b && c == d
+        where a = x1*z2 ^ (2 :: Integer)
+              b = x2*z1 ^ (2 :: Integer)
+              c = y1*z2 ^ (3 :: Integer)
+              d = y2*z1 ^ (3 :: Integer)
+    _                == _                = False
 
 -- Create a new point from (x,y) coordinates.
 -- Returns Nothing if the point doesn't lie on the curve
@@ -53,7 +53,7 @@ getAffine :: Point -> Maybe (FieldP, FieldP)
 getAffine point = case point of
     InfPoint      -> Nothing
     (Point _ _ 0) -> Nothing
-    (Point x y z) -> Just (x/z^2, y/z^3)
+    (Point x y z) -> Just (x/z ^ (2 :: Integer), y/z ^ (3 :: Integer))
 
 getX :: Point -> Maybe FieldP
 getX point = fst <$> (getAffine point)
@@ -68,29 +68,28 @@ validatePoint point = case getAffine point of
     -- 3.2.2.1.1 (check that point not equal to InfPoint)
     Nothing    -> False 
     -- 3.2.2.1.2 (check that the point lies on the curve)
-    Just (x,y) -> y^2 == x^3 + curveB
+    Just (x,y) -> y ^ (2 :: Integer) == x ^ (3 :: Integer) + curveB
 
 isInfPoint :: Point -> Bool
-isInfPoint point = case point of
-    InfPoint      -> True
-    (Point _ _ 0) -> True
-    otherwise     -> False
+isInfPoint InfPoint      = True
+isInfPoint (Point _ _ 0) = True
+isInfPoint _             = False
 
 -- Elliptic curve point addition
 addPoint :: Point -> Point -> Point
 addPoint InfPoint point = point
 addPoint point InfPoint = point
-addPoint p1@(Point x1 y1 z1) p2@(Point x2 y2 z2)
+addPoint p1@(Point x1 y1 z1) (Point x2 y2 z2)
     | u1 == u2 = if s1 == s2 then doublePoint p1 else InfPoint
     | otherwise = Point x3 y3 z3
-    where u1 = x1*z2^2
-          u2 = x2*z1^2
-          s1 = y1*z2^3
-          s2 = y2*z1^3
+    where u1 = x1*z2 ^ (2 :: Integer)
+          u2 = x2*z1 ^ (2 :: Integer)
+          s1 = y1*z2 ^ (3 :: Integer)
+          s2 = y2*z1 ^ (3 :: Integer)
           h  = u2 - u1
           r  = s2 - s1
-          x3 = r^2 - h^3 - 2*u1*h^2 
-          y3 = r*(u1 * h^2 - x3) - s1 * h^3
+          x3 = r ^ (2 :: Integer) - h ^ (3 :: Integer) - 2*u1*h ^ (2 :: Integer) 
+          y3 = r*(u1 * h ^ (2 :: Integer) - x3) - s1 * h ^ (3 :: Integer)
           z3 = h * z1 * z2
 
 -- Elliptic curve point doubling 
@@ -99,19 +98,19 @@ doublePoint InfPoint = InfPoint
 doublePoint (Point x y z)
     | y == 0 = InfPoint
     | otherwise = Point x' y' z'
-    where s = 4*x*y^2
-          m = 3*x^2 -- a = 0
-          x' = m^2 - 2*s
-          y' = m*(s - x') - 8*y^4
+    where s  = 4*x*y ^ (2 :: Integer)
+          m  = 3*x ^ (2 :: Integer) 
+          x' = m ^ (2 :: Integer) - 2*s
+          y' = m*(s - x') - 8*y ^ (4 :: Integer)
           z' = 2*y*z
 
 -- Elliptic curve point multiplication using Montgomery ladder
 -- Todo: Check if Haskell lazy evaluation opens up side channel attacks
 mulPoint :: FieldN -> Point -> Point
-mulPoint 0 point = InfPoint
-mulPoint 1 point = point
+mulPoint 0 _        = InfPoint
+mulPoint 1 p        = p
 mulPoint _ InfPoint = InfPoint
-mulPoint n point = go InfPoint point ((bitSize n) - 1)
+mulPoint n p = go InfPoint p ((bitSize n) - 1)
     where go r0 r1 i
             | i < 0       = r0
             | testBit n i = go (addPoint r0 r1) (doublePoint r1) (i - 1)

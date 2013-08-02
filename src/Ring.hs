@@ -17,11 +17,23 @@ module Ring
 , inverseN
 ) where
 
-import Data.Bits
-import Data.Word
-import Data.Binary
+import Data.Bits 
+    ( Bits
+    , (.&.), (.|.), xor
+    , complement
+    , shift, shiftL, shiftR
+    , bit, testBit, bitSize
+    , popCount, isSigned
+    )
+import Data.Binary (Binary, get, put)
 import Data.Binary.Get 
-import Data.Binary.Put
+    ( getWord64be
+    , getWord32be
+    )
+import Data.Binary.Put 
+    ( putWord64be
+    , putWord32be
+    )
 import Control.Applicative ((<$>))
 import Data.Ratio (numerator, denominator)
 import NumberTheory (mulInverse)
@@ -68,11 +80,11 @@ class RingMod a where
     rBitSize     :: Ring a -> Int
 
 instance RingMod Mod256 where
-    rFromInteger i = Ring $ i `mod` 2^256
+    rFromInteger i = Ring $ i `mod` 2 ^ (256 :: Integer)
     rBitSize     _ = 256
 
 instance RingMod Mod160 where
-    rFromInteger i = Ring $ i `mod` 2^160
+    rFromInteger i = Ring $ i `mod` 2 ^ (160 :: Integer)
     rBitSize     _ = 160
 
 instance RingMod ModP where

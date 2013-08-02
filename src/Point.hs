@@ -8,6 +8,7 @@ module Point
 , addPoint
 , doublePoint
 , mulPoint
+, shamirsTrick
 ) where
 
 import Data.Maybe (fromJust)
@@ -15,7 +16,7 @@ import Data.Bits (testBit, shiftR, bitSize)
 import Control.Applicative ((<$>))
 import Data.Ratio (numerator, denominator)
 
-import Ring (FieldP, FieldN)
+import Ring (FieldP, FieldN, Ring(..))
 
 {- Elliptic curves of the form y^2 = x^3 + 7 (mod p) -}
 
@@ -115,5 +116,18 @@ mulPoint n point = go InfPoint point ((bitSize n) - 1)
             | i < 0       = r0
             | testBit n i = go (addPoint r0 r1) (doublePoint r1) (i - 1)
             | otherwise   = go (doublePoint r0) (addPoint r0 r1) (i - 1)
+
+-- Efficiently compute n1*p1 + n2*p2
+shamirsTrick :: FieldN -> Point -> FieldN -> Point -> Point
+shamirsTrick (Ring i1) p1 (Ring i2) p2 = go i1 i2
+    where q      = addPoint p1 p2
+          go 0 0 = InfPoint
+          go a b | ea && eb  = b2
+                 | ea        = addPoint b2 p2
+                 | eb        = addPoint b2 p1
+                 | otherwise = addPoint b2 q
+             where b2 = doublePoint $ go (a `shiftR` 1) (b `shiftR` 1)
+                   ea = even a
+                   eb = even b
 
 

@@ -60,7 +60,7 @@ inverseP :: FieldP -> FieldP
 inverseP (Ring i) = fromInteger $ mulInverse i curveP
 
 inverseN :: FieldN -> FieldN
-inverseN (Ring i) = fromInteger $ mulInverse i curveP
+inverseN (Ring i) = fromInteger $ mulInverse i curveN
 
 class RingMod a where 
     rFromInteger :: Integer -> Ring a

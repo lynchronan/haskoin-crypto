@@ -4,12 +4,15 @@ import Test.QuickCheck.Property hiding ((.&.))
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
 
+import Control.Monad.Identity
 import Data.Maybe
 import Data.Word
 import Data.Bits
+import qualified Data.ByteString as BS
 
 import QuickCheckUtils
 
+import ECDSA
 import Point
 import Ring
 import NumberTheory
@@ -17,6 +20,8 @@ import NumberTheory
 tests = 
     [ testGroup "Number Theory" 
         [ testProperty "a * inv(a) = 1 (mod p)" inverseMod
+        , testProperty "a * inv(a) = 1 (mod p) in FieldP" inverseModP
+        , testProperty "a * inv(a) = 1 (mod n) in FieldN" inverseModN
         ],
       testGroup "Ring Numeric"
         [ testProperty "Ring fromInteger" ringFromInteger
@@ -52,13 +57,25 @@ tests =
         , testProperty "double P = 2*P" doubleMulPoint
         , testProperty "n*P = P + (n-1)*P" mulPointInduction
         , testProperty "a*P + b*P = (a + b)*P" mulDistributivity
+        , testProperty "shamirsTrick = n1*P1 + n2*P2" testShamirsTrick
+        ],
+      testGroup "ECDSA signatures"
+        [ testProperty "verify( sign(msg) ) = True" signAndVerify
+        , testProperty "Signatures in ECDSA monad are unique" uniqueSignatures
         ]
     ]
 
 {- Number Theory -}
 
-inverseMod :: Integer -> Property
-inverseMod i = i > 0 ==> (i * (mulInverse i curveP)) `mod` curveP == 1
+inverseMod :: Word64 -> Property
+inverseMod i = i > 0 ==> (i' * (mulInverse i' curveP)) `mod` curveP == 1
+    where i' = fromIntegral i
+
+inverseModP :: FieldP -> Property
+inverseModP r = r > 0 ==> r/r == 1
+
+inverseModN :: FieldN -> Property
+inverseModN r = r > 0 ==> r/r == 1
 
 {- Ring Numeric -}
 
@@ -195,5 +212,24 @@ mulPointInduction i p = i > 2 ==>
 mulDistributivity :: FieldN -> FieldN -> Point -> Bool
 mulDistributivity a b p = 
     (addPoint (mulPoint a p) (mulPoint b p)) == mulPoint (a + b) p
+
+testShamirsTrick :: FieldN -> Point -> FieldN -> Point -> Bool
+testShamirsTrick n1 p1 n2 p2 = shamirRes == normalRes
+    where shamirRes = shamirsTrick n1 p1 n2 p2
+          normalRes = addPoint (mulPoint n1 p1) (mulPoint n2 p2)  
+
+{- ECDSA Signatures -}
+
+signAndVerify :: BS.ByteString -> PrivateKey -> Integer -> Property
+signAndVerify msg d k = d > 0 ==> verifyMessage msg s q
+    where q = mulPoint d curveG
+          s = runIdentity $ withNonceDo k (signMessage msg d)
+           
+uniqueSignatures :: BS.ByteString -> PrivateKey -> Integer -> Property
+uniqueSignatures msg d k = d > 0 ==> r /= r' && s /= s'
+    where ((r,s),(r',s')) = runIdentity $ withNonceDo k $ do
+            a <- signMessage msg d
+            b <- signMessage msg d
+            return $ (a,b)
 
 

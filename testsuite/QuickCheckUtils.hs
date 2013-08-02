@@ -3,7 +3,6 @@ module QuickCheckUtils where
 import Test.QuickCheck
 
 import Control.Applicative ((<$>), (<*>))
-import qualified Data.ByteString as BS
 
 import Point
 import Ring
@@ -25,11 +24,4 @@ instance Arbitrary Point where
         [ (1, return makeInfPoint)
         , (9, (flip mulPoint $ curveG) <$> (arbitrary :: Gen FieldN))
         ]
-
--- from Data.ByteString project
-instance Arbitrary BS.ByteString where
-    arbitrary = do
-        bs <- BS.pack `fmap` arbitrary
-        n <- choose (0, 2)
-        return (BS.drop n bs) -- to give us some with non-0 offset
 

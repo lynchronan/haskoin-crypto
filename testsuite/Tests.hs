@@ -8,7 +8,6 @@ import Control.Monad.Identity
 import Data.Maybe
 import Data.Word
 import Data.Bits
-import qualified Data.ByteString as BS
 
 import QuickCheckUtils
 
@@ -220,12 +219,12 @@ testShamirsTrick n1 p1 n2 p2 = shamirRes == normalRes
 
 {- ECDSA Signatures -}
 
-signAndVerify :: BS.ByteString -> PrivateKey -> Integer -> Property
+signAndVerify :: Hash256 -> PrivateKey -> Integer -> Property
 signAndVerify msg d k = d > 0 ==> verifyMessage msg s q
     where q = mulPoint d curveG
           s = runIdentity $ withNonceDo k (signMessage msg d)
            
-uniqueSignatures :: BS.ByteString -> PrivateKey -> Integer -> Property
+uniqueSignatures :: Hash256 -> PrivateKey -> Integer -> Property
 uniqueSignatures msg d k = d > 0 ==> r /= r' && s /= s'
     where ((r,s),(r',s')) = runIdentity $ withNonceDo k $ do
             a <- signMessage msg d

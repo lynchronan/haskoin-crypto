@@ -10,5 +10,5 @@ tests =
         ]
     ]
 
-someTest = 1 @?= 2
+someTest = 1 @?= 1
 

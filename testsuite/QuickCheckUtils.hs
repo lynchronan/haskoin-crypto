@@ -1,3 +1,4 @@
+{-# LANGUAGE EmptyDataDecls #-}
 module QuickCheckUtils where
 
 import Test.QuickCheck

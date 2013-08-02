@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE EmptyDataDecls #-}
 module Ring
 ( Hash256
 , Hash160

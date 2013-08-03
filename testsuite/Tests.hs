@@ -43,6 +43,9 @@ tests =
         , testProperty "Ring PopCount" ringPopCount
         , testProperty "Ring IsSigned" ringIsSigned
         ],
+      testGroup "Ring serialization"
+        [
+        ],
       testGroup "Elliptic curve point arithmetic"
         [ testProperty "P is on the curve" checkOnCurve
         , testProperty "P1 + P2 is on the curve" addOnCurve

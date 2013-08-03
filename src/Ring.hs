@@ -29,14 +29,31 @@ import Data.Binary (Binary, get, put)
 import Data.Binary.Get 
     ( getWord64be
     , getWord32be
+    , getWord8
+    , getByteString
+    , runGet
+    , Get
     )
 import Data.Binary.Put 
     ( putWord64be
     , putWord32be
+    , putWord8
+    , putByteString
+    , runPut
     )
+import Control.Monad (unless)
 import Control.Applicative ((<$>))
 import Data.Ratio (numerator, denominator)
 import NumberTheory (mulInverse)
+import qualified Data.ByteString as BS 
+    ( ByteString
+    , head , length
+    , pack, unpack
+    )
+import Data.Word (Word8)
+import Data.List (unfoldr)
+
+import Util (toStrictBS, toLazyBS)
 
 type Hash256 = Ring Mod256
 type Hash160 = Ring Mod160
@@ -119,11 +136,11 @@ instance RingMod n => Bits (Ring n) where
 
 instance Fractional (Ring ModP) where
     recip = inverseP
-    fromRational r = (fromInteger (numerator r)) / (fromInteger (denominator r))
+    fromRational r = fromInteger (numerator r) / fromInteger (denominator r)
 
 instance Fractional (Ring ModN) where
     recip = inverseN
-    fromRational r = (fromInteger (numerator r)) / (fromInteger (denominator r))
+    fromRational r = fromInteger (numerator r) / fromInteger (denominator r)
 
 {- Binary instances for serialization / deserialization -}
 
@@ -153,5 +170,42 @@ instance Binary (Ring Mod160) where
         putWord32be $ fromIntegral (i `shiftR` 128)
         putWord64be $ fromIntegral (i `shiftR` 64)
         putWord64be $ fromIntegral i
+
+-- DER encoding of a FieldN element as Integer
+-- http://www.itu.int/ITU-T/studygroups/com17/languages/X.690-0207.pdf
+instance Binary (Ring ModN) where
+    get = do
+        t <- getWord8
+        unless (t == 0x02) (fail "Bad DER Identifier octet. Expecting 0x02" )
+        l <- getWord8
+        unless (l <= 0x7f) (fail "Bad DER length. Expecting length <= 0x7f" )
+        i <- bsToInteger <$> getByteString (fromIntegral l)
+        unless (i < curveN) (fail "FieldN payload is greater than curveN")
+        return $ fromInteger i
+
+    put (Ring 0) = error "0 is an invalid FieldN element to serialize"
+    put (Ring i) = do
+        putWord8 0x02 -- Integer type
+        let b = integerToBS i
+            l = fromIntegral $ BS.length b
+        if BS.head b >= 0x7f 
+            then do
+                putWord8 (l + 1)
+                putWord8 0x00
+            else do
+                putWord8 l
+        putByteString b
+         
+
+bsToInteger :: BS.ByteString -> Integer
+bsToInteger = (foldr f 0) . reverse . BS.unpack
+    where f w n = (toInteger w) .|. shiftL n 8
+
+integerToBS :: Integer -> BS.ByteString
+integerToBS i 
+    | i >= 0    = BS.pack . reverse . (unfoldr f) $ i
+    | otherwise = error "integerToBS not defined for negative values"
+    where f 0 = Nothing
+          f x = Just $ (fromInteger x :: Word8, x `shiftR` 8)
 
 

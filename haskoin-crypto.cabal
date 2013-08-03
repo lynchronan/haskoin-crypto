@@ -24,6 +24,7 @@ library
                        bytestring ==0.10.*, 
                        cryptohash ==0.9.*
     hs-source-dirs:    src
+    ghc-options:       -O2
 
 Test-Suite test-haskoin-crypto
     type:              exitcode-stdio-1.0
@@ -39,3 +40,5 @@ Test-Suite test-haskoin-crypto
                        bytestring ==0.10.*, 
                        cryptohash ==0.9.*
     hs-source-dirs:    testsuite, src
+    ghc-options:       -O2
+

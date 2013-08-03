@@ -17,8 +17,8 @@ import Control.Monad.State
     , evalStateT
     , get, put
     )
-
-import Hash (doubleSHA256, toStrictBS)
+import Hash (doubleSHA256)
+import Util (toStrictBS)
 import Point 
     ( Point
     , getAffine, makePoint

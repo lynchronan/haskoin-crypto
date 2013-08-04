@@ -15,6 +15,7 @@ module Ring
 , toMod160
 , inverseP
 , inverseN
+, quadraticResidue
 ) where
 
 import Data.Bits 
@@ -41,7 +42,7 @@ import Data.Binary.Put
     , putByteString
     , runPut
     )
-import Control.Monad (unless)
+import Control.Monad (unless, guard)
 import Control.Applicative ((<$>))
 import Data.Ratio (numerator, denominator)
 import NumberTheory (mulInverse)
@@ -198,6 +199,17 @@ instance Binary (Ring ModN) where
             else do
                 putWord8 l
         putByteString b
+
+instance Binary (Ring ModP) where
+
+    -- Section 2.3.6 http://www.secg.org/download/aid-780/sec1-v2.pdf
+    get = do
+        (Ring i) <- get :: Get Hash256
+        unless (i < curveP) (fail $ "Get: Integer not in FieldP: " ++ (show i))
+        return $ fromInteger i
+
+    -- Section 2.3.7 http://www.secg.org/download/aid-780/sec1-v2.pdf
+    put r = put $ toMod256 r
          
 
 bsToInteger :: BS.ByteString -> Integer
@@ -211,4 +223,10 @@ integerToBS i
     where f 0 = Nothing
           f x = Just $ (fromInteger x :: Word8, x `shiftR` 8)
 
+-- curveP = 3 (mod 4), thus Lagrange solutions apply
+-- http://en.wikipedia.org/wiki/Quadratic_residue
+quadraticResidue :: FieldP -> [FieldP]
+quadraticResidue x = guard (y^2 == x) >> [y, (-y)]
+    where q = (curveP + 1) `div` 4
+          y = x^q
 

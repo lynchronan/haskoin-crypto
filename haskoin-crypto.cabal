@@ -10,7 +10,6 @@ license:               PublicDomain
 license-file:          UNLICENSE
 author:                Philippe Laprade
 maintainer:            plaprade@gmail.com
--- copyright:           
 category:              Network
 build-type:            Simple
 cabal-version:         >= 1.9.2

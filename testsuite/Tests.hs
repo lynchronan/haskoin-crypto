@@ -27,6 +27,7 @@ tests =
         [ testProperty "a * inv(a) = 1 (mod p)" inverseMod
         , testProperty "a * inv(a) = 1 (mod p) in FieldP" inverseModP
         , testProperty "a * inv(a) = 1 (mod n) in FieldN" inverseModN
+        , testProperty "sqrt( a^2 ) = a (mod p)" sqrtP
         ],
       testGroup "Ring Numeric"
         [ testProperty "Ring fromInteger" ringFromInteger
@@ -51,10 +52,14 @@ tests =
       testGroup "Binary serialization"
         [ testProperty "get( put(Hash256) ) = Hash256" getPutHash256
         , testProperty "get( put(Hash160) ) = Hash160" getPutHash160
+        , testProperty "get( put(FieldP) ) = FieldP" getPutModP
+        , testProperty "size( put(FieldP) ) = 32" putModPSize
         , testProperty "get( put(FieldN) ) = FieldN" getPutModN
         , testProperty "Verify DER of put(FieldN)" putModNSize
-        , testProperty "get( put(Sig) ) == Sig" getPutSig
+        , testProperty "get( put(Sig) ) = Sig" getPutSig
         , testProperty "Verify DER of put(Sig)" putSigSize
+        , testProperty "get( put(Point) ) = Point" getPutPoint
+        , testProperty "size( put(Point) ) = 33" putPointSize
         ],
       testGroup "Elliptic curve point arithmetic"
         [ testProperty "P is on the curve" checkOnCurve
@@ -89,6 +94,10 @@ inverseModP r = r > 0 ==> r/r == 1
 
 inverseModN :: FieldN -> Property
 inverseModN r = r > 0 ==> r/r == 1
+
+sqrtP :: FieldP -> Bool
+sqrtP x = (a == x && b == (-x)) || (a == (-x) && b == x)
+    where (a:b:_) = quadraticResidue (x^2)
 
 {- Ring Numeric -}
 
@@ -182,12 +191,15 @@ getPutHash256 r = r == runGet get (runPut $ put r)
 getPutHash160 :: Hash160 -> Bool
 getPutHash160 r = r == runGet get (runPut $ put r)
 
+getPutModP :: FieldP -> Bool
+getPutModP r = r == runGet get (runPut $ put r)
+
+putModPSize :: FieldP -> Bool
+putModPSize r = BS.length s == 32
+    where s = toStrictBS $ runPut $ put r
+
 getPutModN :: FieldN -> Property
 getPutModN r = r > 0 ==> r == runGet get (runPut $ put r)
-
-getPutSig :: Signature -> Property
-getPutSig sig@(Signature r s) = r > 0 && s > 0 ==> 
-    sig == runGet get (runPut $ put sig)
 
 putModNSize :: FieldN -> Property
 putModNSize r = r > 0 ==>
@@ -202,6 +214,10 @@ putModNSize r = r > 0 ==>
           c  = BS.index bs 2
           l  = BS.length bs
 
+getPutSig :: Signature -> Property
+getPutSig sig@(Signature r s) = r > 0 && s > 0 ==> 
+    sig == runGet get (runPut $ put sig)
+
 putSigSize :: Signature -> Property
 putSigSize sig@(Signature r s) = r > 0 && s > 0 ==>
    (  a == fromIntegral 0x30    -- DER type is Sequence
@@ -212,6 +228,15 @@ putSigSize sig@(Signature r s) = r > 0 && s > 0 ==>
          a  = BS.index bs 0
          b  = BS.index bs 1
          l  = BS.length bs
+
+getPutPoint :: Point -> Bool
+getPutPoint p = p == runGet get (runPut $ put p)
+
+putPointSize :: Point -> Bool
+putPointSize p = case p of
+    InfPoint -> BS.length s == 1
+    _        -> BS.length s == 33
+    where s = toStrictBS $ runPut $ put p
 
 {- Public Key -}
 

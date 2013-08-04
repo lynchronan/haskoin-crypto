@@ -11,9 +11,20 @@ module Point
 , shamirsTrick
 ) where
 
+import Data.Maybe (isJust, fromJust)
+
+import Data.Binary (Binary, get, put)
+import Data.Binary.Get (Get, getWord8)
+import Data.Binary.Put (Put, putWord8)
+
 import Data.Bits (testBit, shiftR, bitSize)
-import Control.Applicative ((<$>))
-import Ring (FieldP, FieldN, Ring(..))
+import Control.Applicative ((<$>), (<*>))
+import Control.Monad (unless, when)
+import Ring 
+    ( Ring(..)
+    , FieldP , FieldN
+    , quadraticResidue
+    )
 
 {- Elliptic curves of the form y^2 = x^3 + 7 (mod p) -}
 
@@ -36,6 +47,50 @@ instance Eq Point where
               c = y1*z2 ^ (3 :: Integer)
               d = y2*z1 ^ (3 :: Integer)
     _                == _                = False
+
+instance Binary Point where
+
+    -- Section 2.3.4 http://www.secg.org/download/aid-780/sec1-v2.pdf
+    get = go =<< getWord8
+              -- 2.3.4.1 InfPoint if input is 0x00
+        where go 0 = return InfPoint
+              -- 2.3.4.3 Uncompressed format
+              go 4 = getUncompressed
+              -- 2.3.4.2 Compressed format
+              -- 2 means pY is even, 3 means pY is odd
+              go y | y == 2 || y == 3 = getCompressed (even y)
+                   | otherwise = fail "Get: Invalid public key encoding"
+
+    -- We use compressed form because we're nice
+    -- Section 2.3.3 http://www.secg.org/download/aid-780/sec1-v2.pdf
+    put p = case getAffine p of
+        -- 2.3.3.1
+        Nothing -> putWord8 0x00
+        (Just (x,(Ring y))) -> do
+            putWord8 $ if even y then 0x02 else 0x03 
+            put x
+            
+getUncompressed :: Get Point
+getUncompressed = do
+    p <- makePoint <$> get <*> get
+    unless (isJust p) (fail "Get: Point not on the curve")
+    return $ fromJust p
+
+getCompressed :: Bool -> Get Point
+getCompressed e = do
+    -- 2.1 
+    x <- get :: Get FieldP
+    -- 2.4.1 (deriving yP)
+    let a  = x ^ (3 :: Integer) + curveB
+        ys = filter matchSign (quadraticResidue a)
+    -- We found no square root (mod p)
+    when (null ys) (fail $ "No ECC point for x = " ++ (show x))
+    let p = makePoint x (head ys)
+    -- Additionally, check that the point is on the curve
+    unless (isJust p) (fail "Get: Point not on the curve")
+    return $ fromJust p
+
+    where matchSign (Ring a) = (even a) == e
 
 -- Create a new point from (x,y) coordinates.
 -- Returns Nothing if the point doesn't lie on the curve

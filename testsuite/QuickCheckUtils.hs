@@ -3,7 +3,8 @@ module QuickCheckUtils where
 
 import Test.QuickCheck
 
-import Control.Applicative ((<$>))
+import Control.Monad.Identity
+import Control.Applicative ((<$>),(<*>))
 
 import Point
 import Ring
@@ -24,4 +25,12 @@ instance Arbitrary Point where
         [ (1, return makeInfPoint)
         , (9, (flip mulPoint $ curveG) <$> (arbitrary :: Gen FieldN))
         ]
+
+instance Arbitrary Signature where
+    arbitrary = do
+        i <- arbitrary :: Gen Integer
+        d <- arbitrary :: Gen PrivateKey
+        h <- arbitrary :: Gen Hash256
+        let d' = if d == 0 then 1 else d
+        return $ runIdentity $ withECDSA i (signMessage h d')
 

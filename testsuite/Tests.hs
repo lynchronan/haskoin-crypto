@@ -8,6 +8,10 @@ import Control.Monad.Identity
 import Data.Maybe
 import Data.Word
 import Data.Bits
+import Data.Binary
+import Data.Binary.Get
+import Data.Binary.Put
+import qualified Data.ByteString as BS
 
 import QuickCheckUtils
 
@@ -15,6 +19,7 @@ import ECDSA
 import Point
 import Ring
 import NumberTheory
+import Util
 
 tests :: [Test]
 tests = 
@@ -43,8 +48,13 @@ tests =
         , testProperty "Ring PopCount" ringPopCount
         , testProperty "Ring IsSigned" ringIsSigned
         ],
-      testGroup "Ring serialization"
-        [
+      testGroup "Binary serialization"
+        [ testProperty "get( put(Hash256) ) = Hash256" getPutHash256
+        , testProperty "get( put(Hash160) ) = Hash160" getPutHash160
+        , testProperty "get( put(FieldN) ) = FieldN" getPutModN
+        , testProperty "Verify DER of put(FieldN)" putModNSize
+        , testProperty "get( put(Sig) ) == Sig" getPutSig
+        , testProperty "Verify DER of put(Sig)" putSigSize
         ],
       testGroup "Elliptic curve point arithmetic"
         [ testProperty "P is on the curve" checkOnCurve
@@ -164,6 +174,45 @@ ringIsSigned i = ring == model
     where model = isSigned ((fromInteger i) :: Word32)
           ring  = isSigned ((fromInteger i) :: Test32)
 
+{- Ring serialization -}
+
+getPutHash256 :: Hash256 -> Bool
+getPutHash256 r = r == runGet get (runPut $ put r)
+
+getPutHash160 :: Hash160 -> Bool
+getPutHash160 r = r == runGet get (runPut $ put r)
+
+getPutModN :: FieldN -> Property
+getPutModN r = r > 0 ==> r == runGet get (runPut $ put r)
+
+getPutSig :: Signature -> Property
+getPutSig sig@(Signature r s) = r > 0 && s > 0 ==> 
+    sig == runGet get (runPut $ put sig)
+
+putModNSize :: FieldN -> Property
+putModNSize r = r > 0 ==>
+    (  a == fromIntegral 0x02    -- DER type is Integer
+    && b <= fromIntegral 33      -- Can't be bigger than 32 + 0x00 padding
+    && l == fromIntegral (b + 2) -- Advertised length matches
+    && c <= fromIntegral 0x7f    -- High byte is never 1
+    )
+    where bs = toStrictBS $ runPut $ put r
+          a  = BS.index bs 0
+          b  = BS.index bs 1
+          c  = BS.index bs 2
+          l  = BS.length bs
+
+putSigSize :: Signature -> Property
+putSigSize sig@(Signature r s) = r > 0 && s > 0 ==>
+   (  a == fromIntegral 0x30    -- DER type is Sequence
+   && b <= fromIntegral 70      -- Maximum length is 35 + 35
+   && l == fromIntegral (b + 2) -- Advertised length matches
+   )
+   where bs = toStrictBS $ runPut $ put sig
+         a  = BS.index bs 0
+         b  = BS.index bs 1
+         l  = BS.length bs
+
 {- Public Key -}
 
 checkOnCurve :: Point -> Bool
@@ -226,13 +275,13 @@ testShamirsTrick n1 p1 n2 p2 = shamirRes == normalRes
 signAndVerify :: Hash256 -> PrivateKey -> Integer -> Property
 signAndVerify msg d k = d > 0 ==> verifyMessage msg s q
     where q = mulPoint d curveG
-          s = runIdentity $ withNonceDo k (signMessage msg d)
+          s = runIdentity $ withECDSA k (signMessage msg d)
            
 uniqueSignatures :: Hash256 -> PrivateKey -> Integer -> Property
 uniqueSignatures msg d k = d > 0 ==> r /= r' && s /= s'
-    where ((r,s),(r',s')) = runIdentity $ withNonceDo k $ do
-            a <- signMessage msg d
-            b <- signMessage msg d
-            return $ (a,b)
+    where ((r,s),(r',s')) = runIdentity $ withECDSA k $ do
+            (Signature a b) <- signMessage msg d
+            (Signature c d) <- signMessage msg d
+            return ((a,b),(c,d))
 
 

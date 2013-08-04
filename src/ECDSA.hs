@@ -2,23 +2,35 @@ module ECDSA
 ( ECDSA
 , PublicKey
 , PrivateKey
+, Signature(..)
 , curveG
 , signMessage
 , verifyMessage
-, withNonceDo
+, withECDSA
 ) where
 
 import Data.Maybe (fromJust)
-import Data.Binary.Put (runPut)
-import qualified Data.Binary as B (put)
-import Control.Monad (liftM, guard)
+import Data.Binary.Put 
+    ( runPut
+    , putWord8
+    , putByteString
+    )
+import Data.Binary.Get (getWord8)
+import qualified Data.Binary as B (Binary, get, put)
+
+import Control.Applicative (Applicative, (<*>), (<$>), pure)
+import Control.Monad (liftM, guard, unless)
+import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.State 
     ( StateT
     , evalStateT
     , get, put
     )
+
+import qualified Data.ByteString as BS (length)
+
 import Hash (doubleSHA256)
-import Util (toStrictBS)
+import Util (toStrictBS, isolate)
 import Point 
     ( Point
     , getAffine, makePoint
@@ -33,7 +45,6 @@ import Ring
 
 type PublicKey = Point
 type PrivateKey = FieldN
-type Signature = (FieldN,FieldN)
 type Nonce = FieldN
 type KeyPair = (PrivateKey,PublicKey)
 
@@ -44,6 +55,18 @@ curveG = fromJust $ makePoint
 
 newtype ECDSA m a = ECDSA { runECDSA :: StateT Nonce m a }
 
+instance Functor m => Functor (ECDSA m) where
+    fmap f m = ECDSA $ fmap f (runECDSA m)
+
+instance (Applicative m, Monad m) => Applicative (ECDSA m) where
+    pure = return
+
+    k <*> m = ECDSA $ do
+        f <- runECDSA k
+        x <- runECDSA m
+        return $ f x
+
+
 instance Monad m => Monad (ECDSA m) where
     m >>= f = ECDSA $ do
         x <- runECDSA m
@@ -51,11 +74,37 @@ instance Monad m => Monad (ECDSA m) where
 
     return = ECDSA . return
 
-instance (Functor m, Monad m) => Functor (ECDSA m) where
-    f `fmap` m = ECDSA $ f `fmap` (runECDSA m)
+instance MonadTrans ECDSA where
+    lift = ECDSA . lift -- Lift over the StateT monad
 
-withNonceDo :: Monad m => Integer -> ECDSA m a -> m a
-withNonceDo i m = evalStateT (runECDSA m) (fromInteger i)
+data Signature = Signature { sigR :: FieldN, sigS :: FieldN }
+    deriving (Show, Eq)
+
+instance B.Binary Signature where
+    get = do
+        t <- getWord8
+        -- 0x30 is DER sequence type
+        unless (t == 0x30) (fail $ 
+            "Bad DER identifier byte " ++ (show t) ++ ". Expecting 0x30")
+        l <- getWord8
+        -- Length = (33 + 1 identifier byte + 1 length byte) * 2
+        unless (l <= 70) (fail $
+            "Bad DER length " ++ (show t) ++ ". Expecting length <= 70")
+        isolate (fromIntegral l) $ do
+            Signature <$> B.get <*> B.get
+
+    put (Signature 0 s) = error "0 is an invalid r value in a Signature"
+    put (Signature r 0) = error "0 is an invalid s value in a Signature"
+    put (Signature r s) = do
+        putWord8 0x30
+        let c = toStrictBS $ runPut $ B.put r >> B.put s
+        putWord8 (fromIntegral $ BS.length c)
+        putByteString c
+
+
+-- The Integer here must be a strong random / pseudo-random number
+withECDSA :: Monad m => Integer -> ECDSA m a -> m a
+withECDSA i m = evalStateT (runECDSA m) (fromInteger i)
     
 getNextNonce :: Monad m => ECDSA m Nonce
 getNextNonce = ECDSA $ do
@@ -112,14 +161,14 @@ unsafeSignMessage h d (k,p) = do
     let s = (e + r*d)/k
     guard (s /= 0)
     -- 4.1.3.7
-    return (r,s)
+    return $ Signature r s
 
 -- Section 4.1.4 http://www.secg.org/download/aid-780/sec1-v2.pdf
 verifyMessage :: Hash256 -> Signature -> PublicKey -> Bool
 -- 4.1.4.1 (r and s can not be zero)
-verifyMessage _ (0,_) _ = False
-verifyMessage _ (_,0) _ = False
-verifyMessage h (r,s) q = 
+verifyMessage _ (Signature 0 _) _ = False
+verifyMessage _ (Signature _ 0) _ = False
+verifyMessage h (Signature r s) q = 
     case getAffine p of
         Nothing      -> False
         -- 4.1.4.7 / 4.1.4.8

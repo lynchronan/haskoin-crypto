@@ -176,11 +176,14 @@ instance Binary (Ring Mod160) where
 instance Binary (Ring ModN) where
     get = do
         t <- getWord8
-        unless (t == 0x02) (fail "Bad DER Identifier octet. Expecting 0x02" )
+        unless (t == 0x02) (fail $
+            "Bad DER identifier byte " ++ (show t) ++ ". Expecting 0x02" )
         l <- getWord8
-        unless (l <= 0x7f) (fail "Bad DER length. Expecting length <= 0x7f" )
+        unless (l <= 33) (fail $
+            "Bad DER length " ++ (show l) ++ ". Expecting length <= 33" )
         i <- bsToInteger <$> getByteString (fromIntegral l)
         unless (i < curveN) (fail "FieldN payload is greater than curveN")
+        unless (i > 0) (fail "0 is an invalid FieldN value")
         return $ fromInteger i
 
     put (Ring 0) = error "0 is an invalid FieldN element to serialize"
@@ -203,7 +206,7 @@ bsToInteger = (foldr f 0) . reverse . BS.unpack
 
 integerToBS :: Integer -> BS.ByteString
 integerToBS i 
-    | i >= 0    = BS.pack . reverse . (unfoldr f) $ i
+    | i >= 0    = BS.pack $ reverse $ unfoldr f i
     | otherwise = error "integerToBS not defined for negative values"
     where f 0 = Nothing
           f x = Just $ (fromInteger x :: Word8, x `shiftR` 8)

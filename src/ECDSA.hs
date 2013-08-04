@@ -37,7 +37,8 @@ import Point
     , mulPoint, shamirsTrick
     )
 import Ring 
-    ( Hash256
+    ( Ring(..)
+    , Hash256
     , FieldN
     , toFieldN
     , toMod256
@@ -158,7 +159,9 @@ unsafeSignMessage h d (k,p) = do
     -- 4.1.3.4 / 4.1.3.5
     let e = toFieldN h
     -- 4.1.3.6
-    let s = (e + r*d)/k
+    let s'@(Ring i) = (e + r*d)/k
+        -- Only create signatures with even s
+        s  = if even i then s' else (-s')
     guard (s /= 0)
     -- 4.1.3.7
     return $ Signature r s

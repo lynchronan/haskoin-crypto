@@ -29,7 +29,7 @@ toLazyBS :: BS.ByteString -> BL.ByteString
 toLazyBS bs = BL.fromChunks [bs]
 
 -- Isolate a Get monad for the next Int bytes
--- Fails in the input monad failed or some input was not consumed
+-- Fails if the input monad failed or some input was not consumed
 isolate :: Int -> Get a -> Get a
 isolate i g = do
     bs <- getByteString i

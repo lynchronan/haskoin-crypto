@@ -20,6 +20,7 @@ import Point
 import Ring
 import NumberTheory
 import Util
+import Address
 
 tests :: [Test]
 tests = 
@@ -48,6 +49,15 @@ tests =
         , testProperty "Ring Bit" ringBit
         , testProperty "Ring PopCount" ringPopCount
         , testProperty "Ring IsSigned" ringIsSigned
+        ],
+      testGroup "Ring Integral"
+        [ testProperty "Ring Quot" ringQuot
+        , testProperty "Ring Rem" ringRem
+        , testProperty "Ring Div" ringDiv
+        , testProperty "Ring Mod" ringMod
+        , testProperty "Ring QuotRem" ringQuotRem
+        , testProperty "Ring DivMod" ringDivMod
+        , testProperty "Ring toInteger" ringToInteger
         ],
       testGroup "Binary serialization"
         [ testProperty "get( put(Hash256) ) = Hash256" getPutHash256
@@ -80,6 +90,10 @@ tests =
       testGroup "ECDSA signatures"
         [ testProperty "verify( sign(msg) ) = True" signAndVerify
         , testProperty "Signatures in ECDSA monad are unique" uniqueSignatures
+        , testProperty "S component of a signature is even" evenSig
+        ],
+      testGroup "Address and Base58"
+        [ testProperty "decode58( encode58(i) ) = i" decodeEncode58
         ]
     ]
 
@@ -182,6 +196,47 @@ ringIsSigned :: Integer -> Bool
 ringIsSigned i = ring == model
     where model = isSigned ((fromInteger i) :: Word32)
           ring  = isSigned ((fromInteger i) :: Test32)
+
+{- Ring Integral -}
+
+ringQuot :: Integer -> Integer -> Property
+ringQuot i1 i2 = i2 /= 0 ==> runRing ring == fromIntegral model
+    where model = (fromInteger i1) `quot` (fromInteger i2) :: Word32
+          ring  = (fromInteger i1) `quot` (fromInteger i2) :: Test32
+
+ringRem :: Integer -> Integer -> Property
+ringRem i1 i2 = i2 /= 0 ==> runRing ring == fromIntegral model
+    where model = (fromInteger i1) `rem` (fromInteger i2) :: Word32
+          ring  = (fromInteger i1) `rem` (fromInteger i2) :: Test32
+
+ringDiv :: Integer -> Integer -> Property
+ringDiv i1 i2 = i2 /= 0 ==> runRing ring == fromIntegral model
+    where model = (fromInteger i1) `div` (fromInteger i2) :: Word32
+          ring  = (fromInteger i1) `div` (fromInteger i2) :: Test32
+
+ringMod :: Integer -> Integer -> Property
+ringMod i1 i2 = i2 /= 0 ==> runRing ring == fromIntegral model
+    where model = (fromInteger i1) `mod` (fromInteger i2) :: Word32
+          ring  = (fromInteger i1) `mod` (fromInteger i2) :: Test32
+
+ringQuotRem :: Integer -> Integer -> Property
+ringQuotRem i1 i2 = i2 /= 0 ==> (runRing r1 == fromIntegral m1) &&
+                    (runRing r2 == fromIntegral m2)
+    where (m1,m2) = (fromInteger i1) `quotRem` (fromInteger i2) 
+                        :: (Word32, Word32)
+          (r1,r2) = (fromInteger i1) `quotRem` (fromInteger i2) 
+                        :: (Test32, Test32)
+
+ringDivMod :: Integer -> Integer -> Property
+ringDivMod i1 i2 = i2 /= 0 ==> (runRing r1 == fromIntegral m1) &&
+                    (runRing r2 == fromIntegral m2)
+    where (m1,m2) = (fromInteger i1) `divMod` (fromInteger i2) 
+                :: (Word32, Word32)
+          (r1,r2) = (fromInteger i1) `divMod` (fromInteger i2) 
+                :: (Test32, Test32)
+
+ringToInteger :: Test32 -> Bool
+ringToInteger r@(Ring i) = toInteger r == i
 
 {- Ring serialization -}
 
@@ -309,4 +364,14 @@ uniqueSignatures msg d k = d > 0 ==> r /= r' && s /= s'
             (Signature c d) <- signMessage msg d
             return ((a,b),(c,d))
 
+evenSig :: Signature -> Bool
+evenSig (Signature _ (Ring s)) = s `mod` 2 == 0
+
+{- Address and Base58 -}
+
+decodeEncode58 :: Integer -> Bool
+decodeEncode58 i = case decodeBase58 (encodeBase58 n) of
+    (Just r) -> r == n
+    Nothing  -> False
+    where n = abs i -- We only consider positive integers
 

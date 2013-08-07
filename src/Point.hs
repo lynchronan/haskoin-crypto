@@ -20,10 +20,7 @@ import Data.Binary.Put (Put, putWord8)
 import Data.Bits (testBit, shiftR, bitSize)
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (unless, when)
-import Ring 
-    ( Ring(..)
-    , FieldP , FieldN
-    , quadraticResidue
+import Ring ( FieldP, FieldN, quadraticResidue
     )
 
 {- Elliptic curves of the form y^2 = x^3 + 7 (mod p) -}
@@ -66,7 +63,7 @@ instance Binary Point where
     put p = case getAffine p of
         -- 2.3.3.1
         Nothing -> putWord8 0x00
-        (Just (x,(Ring y))) -> do
+        (Just (x,y)) -> do
             putWord8 $ if even y then 0x02 else 0x03 
             put x
             
@@ -90,7 +87,7 @@ getCompressed e = do
     unless (isJust p) (fail "Get: Point not on the curve")
     return $ fromJust p
 
-    where matchSign (Ring a) = (even a) == e
+    where matchSign a = (even a) == e
 
 -- Create a new point from (x,y) coordinates.
 -- Returns Nothing if the point doesn't lie on the curve
@@ -173,7 +170,7 @@ mulPoint n p = go InfPoint p ((bitSize n) - 1)
 
 -- Efficiently compute n1*p1 + n2*p2
 shamirsTrick :: FieldN -> Point -> FieldN -> Point -> Point
-shamirsTrick (Ring i1) p1 (Ring i2) p2 = go i1 i2
+shamirsTrick r1 p1 r2 p2 = go r1 r2
     where q      = addPoint p1 p2
           go 0 0 = InfPoint
           go a b | ea && eb  = b2

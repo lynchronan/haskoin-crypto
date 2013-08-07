@@ -29,16 +29,19 @@ import Control.Monad.State
 
 import qualified Data.ByteString as BS (length)
 
-import Hash (doubleSHA256)
-import Util (toStrictBS, isolate)
+import Hash (doubleHash256)
+import Util 
+    ( toStrictBS
+    , isolate
+    , integerToBS
+    )
 import Point 
     ( Point
     , getAffine, makePoint
     , mulPoint, shamirsTrick
     )
 import Ring 
-    ( Ring(..)
-    , Hash256
+    ( Hash256
     , FieldN
     , toFieldN
     , toMod256
@@ -118,7 +121,8 @@ getNextNonce = ECDSA $ do
         then return nonce 
         else runECDSA getNextNonce
     where 
-        hash = toFieldN . doubleSHA256 . toStrictBS . runPut . B.put . toMod256
+        hash = toFieldN . doubleHash256 . toBS
+        toBS = integerToBS . toInteger
 
 -- Build a private/public key pair from the ECDSA monad random nonce
 -- Section 3.2.1 http://www.secg.org/download/aid-780/sec1-v2.pdf
@@ -159,9 +163,9 @@ unsafeSignMessage h d (k,p) = do
     -- 4.1.3.4 / 4.1.3.5
     let e = toFieldN h
     -- 4.1.3.6
-    let s'@(Ring i) = (e + r*d)/k
+    let s' = (e + r*d)/k
         -- Only create signatures with even s
-        s  = if even i then s' else (-s')
+        s  = if even s' then s' else (-s')
     guard (s /= 0)
     -- 4.1.3.7
     return $ Signature r s

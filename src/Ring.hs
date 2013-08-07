@@ -52,9 +52,13 @@ import qualified Data.ByteString as BS
     , pack, unpack
     )
 import Data.Word (Word8)
-import Data.List (unfoldr)
 
-import Util (toStrictBS, toLazyBS)
+import Util 
+    ( toStrictBS
+    , toLazyBS
+    , bsToInteger
+    , integerToBS
+    )
 
 type Hash256 = Ring Mod256
 type Hash160 = Ring Mod160
@@ -132,6 +136,42 @@ instance RingMod n => Bits (Ring n) where
     bit n = fromInteger $ bit n
     popCount (Ring i) = popCount i
     isSigned _ = False
+
+instance RingMod n => Bounded (Ring n) where
+    minBound = fromInteger 0
+    maxBound = fromInteger (-1)
+    
+instance RingMod n => Real (Ring n) where
+    toRational (Ring i) = toRational i
+
+instance RingMod n => Enum (Ring n) where
+    succ r@(Ring i)
+        | r == maxBound = error "Ring: tried to take succ of maxBound"
+        | otherwise = fromInteger $ succ i
+    pred r@(Ring i) 
+        | r == minBound = error "Ring: tried to take pred of minBound"
+        | otherwise = fromInteger $ pred i
+    toEnum i
+        | toInteger i >= toInteger (minFrom r) && 
+          toInteger i <= toInteger (maxFrom r) = r
+        | otherwise = error "Ring: toEnum is outside of bounds"
+        where r = fromInteger $ toEnum i
+              minFrom :: RingMod a => Ring a -> Ring a
+              minFrom _ = minBound
+              maxFrom :: RingMod a => Ring a -> Ring a
+              maxFrom _ = maxBound
+    fromEnum (Ring i) = fromEnum i
+
+instance RingMod n => Integral (Ring n) where
+    (Ring i1) `quot` (Ring i2) = fromInteger $ i1 `quot` i2
+    (Ring i1) `rem` (Ring i2) = fromInteger $ i1 `rem` i2
+    (Ring i1) `div` (Ring i2) = fromInteger $ i1 `div` i2
+    (Ring i1) `mod` (Ring i2) = fromInteger $ i1 `mod` i2
+    (Ring i1) `quotRem` (Ring i2) = (fromInteger a, fromInteger b)
+        where (a,b) = i1 `quotRem` i2
+    (Ring i1) `divMod` (Ring i2) = (fromInteger a, fromInteger b)
+        where (a,b) = i1 `divMod` i2
+    toInteger (Ring i) = i
 
 {- Fractional is only defined for prime orders -}
 
@@ -211,17 +251,6 @@ instance Binary (Ring ModP) where
     -- Section 2.3.7 http://www.secg.org/download/aid-780/sec1-v2.pdf
     put r = put $ toMod256 r
          
-
-bsToInteger :: BS.ByteString -> Integer
-bsToInteger = (foldr f 0) . reverse . BS.unpack
-    where f w n = (toInteger w) .|. shiftL n 8
-
-integerToBS :: Integer -> BS.ByteString
-integerToBS i 
-    | i >= 0    = BS.pack $ reverse $ unfoldr f i
-    | otherwise = error "integerToBS not defined for negative values"
-    where f 0 = Nothing
-          f x = Just $ (fromInteger x :: Word8, x `shiftR` 8)
 
 -- curveP = 3 (mod 4), thus Lagrange solutions apply
 -- http://en.wikipedia.org/wiki/Quadratic_residue

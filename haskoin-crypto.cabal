@@ -15,9 +15,10 @@ build-type:            Simple
 cabal-version:         >= 1.9.2
 
 library
-    exposed-modules:   ECDSA, Ring, Hash
-    other-modules:     NumberTheory, Point
+    exposed-modules:   ECDSA, Hash, Address
+    other-modules:     NumberTheory, Point, Util, Ring
     build-depends:     base ==4.6.*, 
+                       containers ==0.5.*,
                        mtl ==2.1.*, 
                        binary ==0.7.*, 
                        bytestring ==0.10.*, 
@@ -29,15 +30,16 @@ Test-Suite test-haskoin-crypto
     type:              exitcode-stdio-1.0
     main-is:           Run.hs
     build-depends:     base ==4.6.*, 
+                       containers ==0.5.*,
+                       mtl ==2.1.*, 
+                       binary ==0.7.*, 
+                       bytestring ==0.10.*, 
+                       cryptohash ==0.9.*,
                        QuickCheck ==2.5.*, 
                        test-framework ==0.8.*, 
                        test-framework-quickcheck2 ==0.3.*, 
-                       mtl ==2.1.*, 
                        test-framework-hunit ==0.3.*, 
-                       HUnit ==1.2.*, 
-                       binary ==0.7.*, 
-                       bytestring ==0.10.*, 
-                       cryptohash ==0.9.*
+                       HUnit ==1.2.*
     hs-source-dirs:    testsuite, src
     ghc-options:       -O2
 

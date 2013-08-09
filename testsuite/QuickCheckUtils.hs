@@ -6,6 +6,8 @@ import Test.QuickCheck
 import Control.Monad.Identity
 import Control.Applicative ((<$>),(<*>))
 
+import qualified Data.ByteString as BS
+
 import Point
 import Ring
 import ECDSA
@@ -33,4 +35,11 @@ instance Arbitrary Signature where
         h <- arbitrary :: Gen Hash256
         let d' = if d == 0 then 1 else d
         return $ runIdentity $ withECDSA i (signMessage h d')
+
+-- from Data.ByteString project
+instance Arbitrary BS.ByteString where
+    arbitrary = do
+        bs <- BS.pack `fmap` arbitrary
+        n <- choose (0, 2)
+        return (BS.drop n bs) -- to give us some with non-0 offset
 

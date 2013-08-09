@@ -1,4 +1,4 @@
-module Tests (tests) where
+module Ring.Tests (tests) where
 
 import Test.QuickCheck.Property hiding ((.&.))
 import Test.Framework
@@ -50,6 +50,16 @@ tests =
         , testProperty "Ring PopCount" ringPopCount
         , testProperty "Ring IsSigned" ringIsSigned
         ],
+      testGroup "Ring Bounded"
+        [ testProperty "Ring minBound" ringMinBound
+        , testProperty "Ring maxBound" ringMaxBound
+        ],
+      testGroup "Ring Enum"
+        [ testProperty "Ring succ" ringSucc
+        , testProperty "Ring pred" ringPred
+        , testProperty "Ring toEnum" ringToEnum
+        , testProperty "Ring fromEnum" ringFromEnum
+        ],
       testGroup "Ring Integral"
         [ testProperty "Ring Quot" ringQuot
         , testProperty "Ring Rem" ringRem
@@ -59,49 +69,22 @@ tests =
         , testProperty "Ring DivMod" ringDivMod
         , testProperty "Ring toInteger" ringToInteger
         ],
-      testGroup "Binary serialization"
-        [ testProperty "get( put(Hash256) ) = Hash256" getPutHash256
+      testGroup "Ring Binary"
+        [ testProperty "get( put(Integer) ) = Integer" getPutInteger
+        , testProperty "get( put(Hash256) ) = Hash256" getPutHash256
         , testProperty "get( put(Hash160) ) = Hash160" getPutHash160
         , testProperty "get( put(FieldP) ) = FieldP" getPutModP
         , testProperty "size( put(FieldP) ) = 32" putModPSize
         , testProperty "get( put(FieldN) ) = FieldN" getPutModN
         , testProperty "Verify DER of put(FieldN)" putModNSize
-        , testProperty "get( put(Sig) ) = Sig" getPutSig
-        , testProperty "Verify DER of put(Sig)" putSigSize
-        , testProperty "get( put(Point) ) = Point" getPutPoint
-        , testProperty "size( put(Point) ) = 33" putPointSize
-        ],
-      testGroup "Elliptic curve point arithmetic"
-        [ testProperty "P is on the curve" checkOnCurve
-        , testProperty "P1 + P2 is on the curve" addOnCurve
-        , testProperty "n*P is on the curve" mulOnCurve
-        , testProperty "makePoint (getAffine P) = P" fromToAffine
-        , testProperty "P + InfPoint = P" addInfPoint
-        , testProperty "InfPoint + P = P" addInfPoint'
-        , testProperty "P1 + P2 = P2 + P1" addCommutative
-        , testProperty "(P1 + P2) + P3 = P1 + (P2 + P3)" addAssoc
-        , testProperty "(x,y) + (x,-y) = InfPoint" addInverseY
-        , testProperty "double P = P + P" doubleAddPoint
-        , testProperty "double P = 2*P" doubleMulPoint
-        , testProperty "n*P = P + (n-1)*P" mulPointInduction
-        , testProperty "a*P + b*P = (a + b)*P" mulDistributivity
-        , testProperty "shamirsTrick = n1*P1 + n2*P2" testShamirsTrick
-        ],
-      testGroup "ECDSA signatures"
-        [ testProperty "verify( sign(msg) ) = True" signAndVerify
-        , testProperty "Signatures in ECDSA monad are unique" uniqueSignatures
-        , testProperty "S component of a signature is even" evenSig
-        ],
-      testGroup "Address and Base58"
-        [ testProperty "decode58( encode58(i) ) = i" decodeEncode58
         ]
     ]
 
 {- Number Theory -}
 
-inverseMod :: Word64 -> Property
-inverseMod i = i > 0 ==> (i' * (mulInverse i' curveP)) `mod` curveP == 1
-    where i' = fromIntegral i
+inverseMod :: Integer -> Property
+inverseMod i = p > 0 ==> (p * (mulInverse p curveP)) `mod` curveP == 1
+    where p = abs i
 
 inverseModP :: FieldP -> Property
 inverseModP r = r > 0 ==> r/r == 1
@@ -197,6 +180,38 @@ ringIsSigned i = ring == model
     where model = isSigned ((fromInteger i) :: Word32)
           ring  = isSigned ((fromInteger i) :: Test32)
 
+{- Ring Bounded -}
+
+ringMinBound :: Test32 -> Bool
+ringMinBound _ = (minBound :: Test32) - 1 == (maxBound :: Test32)
+
+ringMaxBound :: Test32 -> Bool
+ringMaxBound _ = (maxBound :: Test32) + 1 == (minBound :: Test32)
+
+{- Ring Enum -}
+
+ringSucc :: Integer -> Property
+ringSucc i = (fromIntegral i) /= maxB ==> runRing ring == fromIntegral model
+    where model = succ (fromInteger i) :: Word32
+          ring  = succ (fromInteger i) :: Test32
+          maxB   = maxBound :: Word32
+
+ringPred :: Integer -> Property
+ringPred i = (fromIntegral i) /= minB ==> runRing ring == fromIntegral model
+    where model = pred (fromInteger i) :: Word32
+          ring  = pred (fromInteger i) :: Test32
+          minB   = minBound :: Word32
+
+ringToEnum :: Word32 -> Bool
+ringToEnum w = runRing ring == fromIntegral model
+    where model = toEnum (fromIntegral w) :: Word32
+          ring  = toEnum (fromIntegral w) :: Test32
+
+ringFromEnum :: Integer -> Bool
+ringFromEnum i = model == ring
+    where model = fromEnum ((fromInteger i) :: Word32)
+          ring  = fromEnum ((fromInteger i) :: Test32)
+
 {- Ring Integral -}
 
 ringQuot :: Integer -> Integer -> Property
@@ -238,7 +253,11 @@ ringDivMod i1 i2 = i2 /= 0 ==> (runRing r1 == fromIntegral m1) &&
 ringToInteger :: Test32 -> Bool
 ringToInteger r@(Ring i) = toInteger r == i
 
-{- Ring serialization -}
+{- Ring Binary -}
+
+getPutInteger :: Integer -> Bool
+getPutInteger i = (bsToInteger $ integerToBS p) == p
+    where p = abs i
 
 getPutHash256 :: Hash256 -> Bool
 getPutHash256 r = r == runGet get (runPut $ put r)
@@ -269,109 +288,4 @@ putModNSize r = r > 0 ==>
           c  = BS.index bs 2
           l  = BS.length bs
 
-getPutSig :: Signature -> Property
-getPutSig sig@(Signature r s) = r > 0 && s > 0 ==> 
-    sig == runGet get (runPut $ put sig)
-
-putSigSize :: Signature -> Property
-putSigSize sig@(Signature r s) = r > 0 && s > 0 ==>
-   (  a == fromIntegral 0x30    -- DER type is Sequence
-   && b <= fromIntegral 70      -- Maximum length is 35 + 35
-   && l == fromIntegral (b + 2) -- Advertised length matches
-   )
-   where bs = toStrictBS $ runPut $ put sig
-         a  = BS.index bs 0
-         b  = BS.index bs 1
-         l  = BS.length bs
-
-getPutPoint :: Point -> Bool
-getPutPoint p = p == runGet get (runPut $ put p)
-
-putPointSize :: Point -> Bool
-putPointSize p = case p of
-    InfPoint -> BS.length s == 1
-    _        -> BS.length s == 33
-    where s = toStrictBS $ runPut $ put p
-
-{- Public Key -}
-
-checkOnCurve :: Point -> Bool
-checkOnCurve InfPoint = True
-checkOnCurve p = validatePoint p
-
-addOnCurve :: Point -> Point -> Bool
-addOnCurve p1 p2 = case addPoint p1 p2 of
-    InfPoint -> True
-    p        -> validatePoint p
-
-mulOnCurve :: Point -> FieldN -> Bool
-mulOnCurve p1 n = case mulPoint n p1 of
-    InfPoint -> True
-    p        -> validatePoint p
-
-fromToAffine :: Point -> Property
-fromToAffine p = not (isInfPoint p) ==> (fromJust $ makePoint x y) == p
-    where (x,y) = fromJust $ getAffine p
-
-addInfPoint :: Point -> Bool
-addInfPoint p = addPoint p makeInfPoint == p
-
-addInfPoint' :: Point -> Bool
-addInfPoint' p = addPoint makeInfPoint p == p
-
-addCommutative :: Point -> Point -> Bool
-addCommutative p1 p2 = addPoint p1 p2 == addPoint p2 p1
-
-addAssoc :: Point -> Point -> Point -> Bool
-addAssoc p1 p2 p3 = 
-    addPoint (addPoint p1 p2) p3 == addPoint p1 (addPoint p2 p3)
-
-addInverseY :: Point -> Bool
-addInverseY p1 = case (getAffine p1) of
-    (Just (x,y)) -> addPoint p1 (fromJust $ makePoint x (-y)) == makeInfPoint
-    Nothing      -> True
-
-doubleAddPoint :: Point -> Bool
-doubleAddPoint p = doublePoint p == addPoint p p
-
-doubleMulPoint :: Point -> Bool
-doubleMulPoint p = doublePoint p == mulPoint 2 p
-
-mulPointInduction :: FieldN -> Point -> Property
-mulPointInduction i p = i > 2 ==> 
-    mulPoint i p == addPoint p (mulPoint (i-1) p)
-
-mulDistributivity :: FieldN -> FieldN -> Point -> Bool
-mulDistributivity a b p = 
-    (addPoint (mulPoint a p) (mulPoint b p)) == mulPoint (a + b) p
-
-testShamirsTrick :: FieldN -> Point -> FieldN -> Point -> Bool
-testShamirsTrick n1 p1 n2 p2 = shamirRes == normalRes
-    where shamirRes = shamirsTrick n1 p1 n2 p2
-          normalRes = addPoint (mulPoint n1 p1) (mulPoint n2 p2)  
-
-{- ECDSA Signatures -}
-
-signAndVerify :: Hash256 -> PrivateKey -> Integer -> Property
-signAndVerify msg d k = d > 0 ==> verifyMessage msg s q
-    where q = mulPoint d curveG
-          s = runIdentity $ withECDSA k (signMessage msg d)
-           
-uniqueSignatures :: Hash256 -> PrivateKey -> Integer -> Property
-uniqueSignatures msg d k = d > 0 ==> r /= r' && s /= s'
-    where ((r,s),(r',s')) = runIdentity $ withECDSA k $ do
-            (Signature a b) <- signMessage msg d
-            (Signature c d) <- signMessage msg d
-            return ((a,b),(c,d))
-
-evenSig :: Signature -> Bool
-evenSig (Signature _ (Ring s)) = s `mod` 2 == 0
-
-{- Address and Base58 -}
-
-decodeEncode58 :: Integer -> Bool
-decodeEncode58 i = case decodeBase58 (encodeBase58 n) of
-    (Just r) -> r == n
-    Nothing  -> False
-    where n = abs i -- We only consider positive integers
 

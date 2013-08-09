@@ -13,7 +13,9 @@ import Control.Monad (guard)
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as M
 
-import Hash (chksum32)
+import Point (Point)
+import Ring (FieldN, toMod256)
+import Hash (chksum32, hash160BS, hash256BS)
 import Util (integerToBS, bsToInteger, toStrictBS)
 
 b58String :: String
@@ -73,4 +75,15 @@ decodeBase58Check bs = do
     let (res,chk) = BS.splitAt ((BS.length rs) - 4) rs
     guard $ chk == (toStrictBS $ runPut $ put (chksum32 res))
     return res
+
+pubkeyToAddress :: Point -> BS.ByteString
+pubkeyToAddress p = 
+    encodeBase58Check . (BS.cons 0x00) . hash160BS . hash256BS $ bs
+    where bs = toStrictBS $ runPut $ put p -- compute compressed format
+
+privkeyToWIF :: FieldN -> BS.ByteString
+privkeyToWIF 0 = error "0 is an invalid private key to export"
+privkeyToWIF d = encodeBase58Check $ BS.cons 0x80 bs
+    where bs = toStrictBS $ runPut $ put $ toMod256 d
+
 

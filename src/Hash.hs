@@ -2,7 +2,10 @@ module Hash
 ( CheckSum32
 , hash256
 , hash160
+, hash256BS
+, hash160BS
 , doubleHash256
+, doubleHash256BS
 , chksum32
 ) where
 
@@ -39,11 +42,20 @@ run160 = (digestToByteString :: Digest RIPEMD160 -> BS.ByteString) . hash
 hash256 :: BS.ByteString -> Hash256
 hash256 bs = runGet get (toLazyBS $ run256 bs)
 
+hash256BS :: BS.ByteString -> BS.ByteString
+hash256BS bs = run256 bs
+
 hash160 :: BS.ByteString -> Hash160
 hash160 bs = runGet get (toLazyBS $ run160 bs)
 
+hash160BS :: BS.ByteString -> BS.ByteString
+hash160BS bs = run160 bs
+
 doubleHash256 :: BS.ByteString -> Hash256
 doubleHash256 bs = runGet get (toLazyBS $ run256 $ run256 bs)
+
+doubleHash256BS :: BS.ByteString -> BS.ByteString
+doubleHash256BS bs = run256 $ run256 bs
 
 chksum32 :: BS.ByteString -> CheckSum32
 chksum32 bs = CheckSum32 $ fromIntegral $ (doubleHash256 bs) `shiftR` 224

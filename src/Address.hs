@@ -14,7 +14,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as M
 
 import Point (Point)
-import Ring (FieldN, toMod256)
+import Ring (FieldN, toMod256, isValidPrivkey)
 import Hash (chksum32, hash160BS, hash256BS)
 import Util (integerToBS, bsToInteger, toStrictBS)
 
@@ -85,5 +85,13 @@ privkeyToWIF :: FieldN -> BS.ByteString
 privkeyToWIF 0 = error "0 is an invalid private key to export"
 privkeyToWIF d = encodeBase58Check $ BS.cons 0x80 bs
     where bs = toStrictBS $ runPut $ put $ toMod256 d
+
+wifToPrivkey :: BS.ByteString -> Maybe FieldN
+wifToPrivkey bs = do
+    r <- decodeBase58Check bs
+    guard ((BS.head r) == 0x80)
+    let i = bsToInteger (BS.tail r)
+    guard (isValidPrivkey i)
+    return $ fromInteger i
 
 

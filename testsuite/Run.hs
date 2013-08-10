@@ -10,7 +10,8 @@ import qualified ECDSA.Tests (tests)
 import qualified Address.Tests (tests)
 import qualified Units (tests)
 
-main = defaultMain 
+main = defaultMain
+--    ( Units.tests )
     (  Ring.Tests.tests 
     ++ Point.Tests.tests 
     ++ ECDSA.Tests.tests 

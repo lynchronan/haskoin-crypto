@@ -83,15 +83,21 @@ pubkeyToAddress p =
 
 privkeyToWIF :: FieldN -> BS.ByteString
 privkeyToWIF 0 = error "0 is an invalid private key to export"
-privkeyToWIF d = encodeBase58Check $ BS.cons 0x80 bs
+privkeyToWIF d = encodeBase58Check $ BS.cons 0x80 (BS.snoc bs 0x01)
     where bs = toStrictBS $ runPut $ put $ toMod256 d
 
 wifToPrivkey :: BS.ByteString -> Maybe FieldN
 wifToPrivkey bs = do
     r <- decodeBase58Check bs
-    guard ((BS.head r) == 0x80)
-    let i = bsToInteger (BS.tail r)
-    guard (isValidPrivkey i)
+    let (h,b,f) = (BS.head r, BS.tail r, BS.last r)
+    guard (h == 0x80)
+    i <- case BS.length b of
+            32 -> return $ bsToInteger b -- Uncompressed key
+            33 -> do                     -- Compressed key
+                guard (f == 0x01) 
+                return $ bsToInteger (BS.init b) -- Drop the 0x01 flag
+            _  -> guard False >> return 0        -- Bad length. Return Nothing
+    guard (isValidPrivkey i) -- Fail if integer is 0 or greater than curveN
     return $ fromInteger i
 
 

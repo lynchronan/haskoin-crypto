@@ -1,4 +1,4 @@
-module Util
+module Haskoin.Crypto.Util
 ( toStrictBS
 , toLazyBS
 , isolate

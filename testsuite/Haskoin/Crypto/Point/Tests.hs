@@ -1,4 +1,4 @@
-module Point.Tests (tests) where
+module Haskoin.Crypto.Point.Tests (tests) where
 
 import Test.QuickCheck.Property hiding ((.&.))
 import Test.Framework
@@ -15,20 +15,14 @@ import qualified Data.ByteString as BS
 
 import QuickCheckUtils
 
-import ECDSA
-import Point
-import Ring
-import NumberTheory
-import Util
-import Address
+import Haskoin.Crypto.Point
+import Haskoin.Crypto.Ring
+import Haskoin.Crypto.NumberTheory
+import Haskoin.Crypto.Util
 
 tests :: [Test]
 tests = 
-    [ testGroup "Point Binary"
-        [ testProperty "get( put(Point) ) = Point" getPutPoint
-        , testProperty "size( put(Point) ) = 33" putPointSize
-        ],
-      testGroup "Elliptic curve point arithmetic"
+    [ testGroup "Elliptic curve point arithmetic"
         [ testProperty "P is on the curve" checkOnCurve
         , testProperty "P1 + P2 is on the curve" addOnCurve
         , testProperty "n*P is on the curve" mulOnCurve
@@ -45,18 +39,6 @@ tests =
         , testProperty "shamirsTrick = n1*P1 + n2*P2" testShamirsTrick
         ]
     ]
-
-
-{- Point Binary -}
-
-getPutPoint :: Point -> Bool
-getPutPoint p = p == runGet get (runPut $ put p)
-
-putPointSize :: Point -> Bool
-putPointSize p = case p of
-    InfPoint -> BS.length s == 1
-    _        -> BS.length s == 33
-    where s = toStrictBS $ runPut $ put p
 
 {- Elliptic curve point arithmetic -}
 

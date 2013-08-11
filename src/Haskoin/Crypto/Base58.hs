@@ -1,11 +1,17 @@
-module Address where
+module Haskoin.Crypto.Base58
+( encodeBase58
+, decodeBase58
+, encodeBase58Check
+, decodeBase58Check
+) where
 
 import Data.Char (ord)
 import Data.Word (Word8)
 import Data.Maybe (fromJust)
 import Data.Bits (shiftL)
-import Data.Binary (put)
+import Data.Binary (Get, Put, get, put)
 import Data.Binary.Put (runPut)
+import Data.Binary.Get (runGet)
 
 import Control.Applicative ((<$>))
 import Control.Monad (guard)
@@ -13,10 +19,16 @@ import Control.Monad (guard)
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as M
 
-import Point (Point)
-import Ring (FieldN, toMod256, isValidPrivkey)
-import Hash (chksum32, hash160BS, hash256BS)
-import Util (integerToBS, bsToInteger, toStrictBS)
+import Haskoin.Crypto.Hash 
+    ( chksum32
+    , hash160BS
+    , hash256BS
+    )
+import Haskoin.Crypto.Util 
+    ( integerToBS
+    , bsToInteger 
+    , toStrictBS 
+    )
 
 b58String :: String
 b58String = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -75,29 +87,4 @@ decodeBase58Check bs = do
     let (res,chk) = BS.splitAt ((BS.length rs) - 4) rs
     guard $ chk == (toStrictBS $ runPut $ put (chksum32 res))
     return res
-
-pubkeyToAddress :: Point -> BS.ByteString
-pubkeyToAddress p = 
-    encodeBase58Check . (BS.cons 0x00) . hash160BS . hash256BS $ bs
-    where bs = toStrictBS $ runPut $ put p -- compute compressed format
-
-privkeyToWIF :: FieldN -> BS.ByteString
-privkeyToWIF 0 = error "0 is an invalid private key to export"
-privkeyToWIF d = encodeBase58Check $ BS.cons 0x80 (BS.snoc bs 0x01)
-    where bs = toStrictBS $ runPut $ put $ toMod256 d
-
-wifToPrivkey :: BS.ByteString -> Maybe FieldN
-wifToPrivkey bs = do
-    r <- decodeBase58Check bs
-    let (h,b,f) = (BS.head r, BS.tail r, BS.last r)
-    guard (h == 0x80)
-    i <- case BS.length b of
-            32 -> return $ bsToInteger b -- Uncompressed key
-            33 -> do                     -- Compressed key
-                guard (f == 0x01) 
-                return $ bsToInteger (BS.init b) -- Drop the 0x01 flag
-            _  -> guard False >> return 0        -- Bad length. Return Nothing
-    guard (isValidPrivkey i) -- Fail if integer is 0 or greater than curveN
-    return $ fromInteger i
-
 

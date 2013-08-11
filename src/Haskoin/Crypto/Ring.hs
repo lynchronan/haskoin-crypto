@@ -1,14 +1,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE EmptyDataDecls #-}
-module Ring
+module Haskoin.Crypto.Ring
 ( Hash256
 , Hash160
 , FieldP
 , FieldN
-, curveN
-, curveP
 , Ring(..)
 , RingMod(..)
+, curveN
+, curveP
 , toFieldN
 , toFieldP
 , toMod256
@@ -46,15 +46,15 @@ import Data.Binary.Put
 import Control.Monad (unless, guard)
 import Control.Applicative ((<$>))
 import Data.Ratio (numerator, denominator)
-import NumberTheory (mulInverse)
+import Data.Word (Word8)
 import qualified Data.ByteString as BS 
     ( ByteString
     , head , length
     , pack, unpack
     )
-import Data.Word (Word8)
 
-import Util 
+import Haskoin.Crypto.NumberTheory (mulInverse)
+import Haskoin.Crypto.Util 
     ( toStrictBS
     , toLazyBS
     , bsToInteger

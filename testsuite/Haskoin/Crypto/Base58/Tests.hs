@@ -1,4 +1,4 @@
-module Address.Tests (tests) where
+module Haskoin.Crypto.Base58.Tests (tests) where
 
 import Test.QuickCheck.Property hiding ((.&.))
 import Test.Framework
@@ -15,19 +15,13 @@ import qualified Data.ByteString as BS
 
 import QuickCheckUtils
 
-import ECDSA
-import Point
-import Ring
-import NumberTheory
-import Util
-import Address
+import Haskoin.Crypto.Base58
 
 tests :: [Test]
 tests = 
     [ testGroup "Address and Base58"
         [ testProperty "decode58( encode58(i) ) = i" decodeEncode58
         , testProperty "decode58Chk( encode58Chk(i) ) = i" decodeEncode58Check
-        , testProperty "fromWIF( toWIF(i) ) = i" decodeEncodeWIF
         ]
     ]
 
@@ -40,7 +34,4 @@ decodeEncode58Check :: BS.ByteString -> Bool
 decodeEncode58Check bs = case decodeBase58Check (encodeBase58Check bs) of
     (Just r) -> r == bs
     Nothing  -> False
-
-decodeEncodeWIF :: FieldN -> Property
-decodeEncodeWIF i = i > 0 ==> i == (fromJust $ wifToPrivkey $ privkeyToWIF i)
 

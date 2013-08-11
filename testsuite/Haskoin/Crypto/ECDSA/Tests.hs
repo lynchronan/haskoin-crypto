@@ -1,4 +1,4 @@
-module ECDSA.Tests (tests) where
+module Haskoin.Crypto.ECDSA.Tests (tests) where
 
 import Test.QuickCheck.Property hiding ((.&.))
 import Test.Framework
@@ -15,12 +15,12 @@ import qualified Data.ByteString as BS
 
 import QuickCheckUtils
 
-import ECDSA
-import Point
-import Ring
-import NumberTheory
-import Util
-import Address
+import Haskoin.Crypto.ECDSA
+import Haskoin.Crypto.Point
+import Haskoin.Crypto.Ring
+import Haskoin.Crypto.NumberTheory
+import Haskoin.Crypto.Util
+import Haskoin.Crypto.Keys
 
 tests :: [Test]
 tests = 
@@ -37,12 +37,12 @@ tests =
 
 {- ECDSA Signatures -}
 
-signAndVerify :: Hash256 -> PrivateKey -> Integer -> Property
+signAndVerify :: Hash256 -> FieldN -> Integer -> Property
 signAndVerify msg d k = d > 0 ==> verifyMessage msg s q
     where q = mulPoint d curveG
           s = runIdentity $ withECDSA k (signMessage msg d)
            
-uniqueSignatures :: Hash256 -> PrivateKey -> Integer -> Property
+uniqueSignatures :: Hash256 -> FieldN -> Integer -> Property
 uniqueSignatures msg d k = d > 0 ==> r /= r' && s /= s'
     where ((r,s),(r',s')) = runIdentity $ withECDSA k $ do
             (Signature a b) <- signMessage msg d
@@ -68,5 +68,4 @@ putSigSize sig@(Signature r s) = r > 0 && s > 0 ==>
          a  = BS.index bs 0
          b  = BS.index bs 1
          l  = BS.length bs
-
 

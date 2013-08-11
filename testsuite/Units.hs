@@ -9,11 +9,11 @@ import qualified Data.ByteString as BS
 import Data.Maybe
 import Data.Char
 
-import Address
-import Ring
-import Point
-import ECDSA
-import Util
+import Haskoin.Crypto.Keys
+import Haskoin.Crypto.Ring
+import Haskoin.Crypto.Point
+import Haskoin.Crypto.ECDSA
+import Haskoin.Crypto.Util
 
 stringToBS :: String -> BS.ByteString
 stringToBS s = BS.pack $ map (fromIntegral . ord) s
@@ -35,13 +35,17 @@ strAddressBad = stringToBS "1HV9Lc3sNHZxwj4Zk6fB38tEmBryq2cBiF"
 
 tests =
     [ testGroup "Private keys"
-        [ testCase "Decoding WIF" checkPrivkey
+        [ testCase "Decode Valid WIF" checkPrivkey
+        , testCase "Decode Invalid WIF" checkInvalidKey
         ]
     ]
 
 checkPrivkey = do
-    assertBool "Key 1" (isJust $ wifToPrivkey strSecret1)
-    assertBool "Key 2" (isJust $ wifToPrivkey strSecret2)
-    assertBool "Key 1C" (isJust $ wifToPrivkey strSecret1C)
-    assertBool "Key 2C" (isJust $ wifToPrivkey strSecret2C)
+    assertBool "Key 1" (isJust $ fromWIF strSecret1)
+    assertBool "Key 2" (isJust $ fromWIF strSecret2)
+    assertBool "Key 1C" (isJust $ fromWIF strSecret1C)
+    assertBool "Key 2C" (isJust $ fromWIF strSecret2C)
+
+checkInvalidKey = 
+    assertBool "Bad key" (isNothing $ fromWIF strAddressBad)
 

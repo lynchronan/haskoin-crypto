@@ -15,8 +15,15 @@ build-type:            Simple
 cabal-version:         >= 1.9.2
 
 library
-    exposed-modules:   ECDSA, Hash, Address
-    other-modules:     NumberTheory, Point, Util, Ring
+    exposed-modules:   Haskoin.Crypto
+    other-modules:     Haskoin.Crypto.NumberTheory, 
+                       Haskoin.Crypto.Util, 
+                       Haskoin.Crypto.Hash, 
+                       Haskoin.Crypto.Ring,
+                       Haskoin.Crypto.Point, 
+                       Haskoin.Crypto.Base58
+                       Haskoin.Crypto.Keys,
+                       Haskoin.Crypto.ECDSA
     build-depends:     base ==4.6.*, 
                        containers ==0.5.*,
                        mtl ==2.1.*, 
@@ -28,7 +35,7 @@ library
 
 Test-Suite test-haskoin-crypto
     type:              exitcode-stdio-1.0
-    main-is:           Run.hs
+    main-is:           Main.hs
     build-depends:     base ==4.6.*, 
                        containers ==0.5.*,
                        mtl ==2.1.*, 

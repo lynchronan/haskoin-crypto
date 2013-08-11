@@ -1,5 +1,7 @@
-module Hash
-( CheckSum32
+module Haskoin.Crypto.Hash
+( Hash256
+, Hash160
+, CheckSum32
 , hash256
 , hash160
 , hash256BS
@@ -24,10 +26,11 @@ import Control.Applicative ((<$>))
 
 import qualified Data.ByteString as BS (ByteString)
 
-import Ring (Hash256, Hash160)
-import Util (toLazyBS)
+import Haskoin.Crypto.Ring (Hash256, Hash160)
+import Haskoin.Crypto.Util (toLazyBS)
 
 newtype CheckSum32 = CheckSum32 { runCheckSum32 :: Word32 }
+    deriving (Show, Eq)
 
 instance Binary CheckSum32 where
     get = CheckSum32 <$> get

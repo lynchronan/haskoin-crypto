@@ -1,22 +1,20 @@
-module ECDSA
+module Haskoin.Crypto.ECDSA
 ( ECDSA
-, PublicKey
-, PrivateKey
 , Signature(..)
-, curveG
 , signMessage
 , verifyMessage
 , withECDSA
 ) where
 
 import Data.Maybe (fromJust)
+
+import qualified Data.Binary as B (Binary, get, put)
 import Data.Binary.Put 
     ( runPut
     , putWord8
     , putByteString
     )
 import Data.Binary.Get (getWord8)
-import qualified Data.Binary as B (Binary, get, put)
 
 import Control.Applicative (Applicative, (<*>), (<$>), pure)
 import Control.Monad (liftM, guard, unless)
@@ -29,33 +27,26 @@ import Control.Monad.State
 
 import qualified Data.ByteString as BS (length)
 
-import Hash (doubleHash256)
-import Util 
+import Haskoin.Crypto.Hash (doubleHash256)
+import Haskoin.Crypto.Keys (PrivateKey, curveG)
+import Haskoin.Crypto.Util 
     ( toStrictBS
     , isolate
     , integerToBS
     )
-import Point 
+import Haskoin.Crypto.Point 
     ( Point
     , getAffine, makePoint
     , mulPoint, shamirsTrick
     )
-import Ring 
+import Haskoin.Crypto.Ring 
     ( Hash256
     , FieldN
     , toFieldN
     , toMod256
     )
 
-type PublicKey = Point
-type PrivateKey = FieldN
 type Nonce = FieldN
-type KeyPair = (PrivateKey,PublicKey)
-
-curveG :: Point
-curveG = fromJust $ makePoint
-        0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798       
-        0X483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8 
 
 newtype ECDSA m a = ECDSA { runECDSA :: StateT Nonce m a }
 
@@ -105,7 +96,6 @@ instance B.Binary Signature where
         putWord8 (fromIntegral $ BS.length c)
         putByteString c
 
-
 -- The Integer here must be a strong random / pseudo-random number
 withECDSA :: Monad m => Integer -> ECDSA m a -> m a
 withECDSA i m = evalStateT (runECDSA m) (fromInteger i)
@@ -126,7 +116,7 @@ getNextNonce = ECDSA $ do
 
 -- Build a private/public key pair from the ECDSA monad random nonce
 -- Section 3.2.1 http://www.secg.org/download/aid-780/sec1-v2.pdf
-genKeyPair :: Monad m => ECDSA m KeyPair
+genKeyPair :: Monad m => ECDSA m (FieldN, Point)
 genKeyPair = do
     -- 3.2.1.1 
     d <- getNextNonce
@@ -138,7 +128,7 @@ genKeyPair = do
 -- Safely sign a message inside the ECDSA monad.
 -- ECDSA monad will generate a new nonce for each signature
 -- Section 4.1.3 http://www.secg.org/download/aid-780/sec1-v2.pdf
-signMessage :: Monad m => Hash256 -> PrivateKey -> ECDSA m Signature
+signMessage :: Monad m => Hash256 -> FieldN -> ECDSA m Signature
 signMessage _ 0 = error "Integer 0 is an invalid private key"
 signMessage h d = do
     -- 4.1.3.1
@@ -152,7 +142,7 @@ signMessage h d = do
 -- Re-using the same nonce twice will expose the private keys
 -- Use signMessage within the ECDSA monad instead
 -- Section 4.1.3 http://www.secg.org/download/aid-780/sec1-v2.pdf
-unsafeSignMessage :: Hash256 -> PrivateKey -> KeyPair -> Maybe Signature
+unsafeSignMessage :: Hash256 -> FieldN -> (FieldN, Point) -> Maybe Signature
 unsafeSignMessage _ 0 _ = Nothing
 unsafeSignMessage h d (k,p) = do
     -- 4.1.3.1 (4.1.3.2 not required)
@@ -171,7 +161,7 @@ unsafeSignMessage h d (k,p) = do
     return $ Signature r s
 
 -- Section 4.1.4 http://www.secg.org/download/aid-780/sec1-v2.pdf
-verifyMessage :: Hash256 -> Signature -> PublicKey -> Bool
+verifyMessage :: Hash256 -> Signature -> Point -> Bool
 -- 4.1.4.1 (r and s can not be zero)
 verifyMessage _ (Signature 0 _) _ = False
 verifyMessage _ (Signature _ 0) _ = False

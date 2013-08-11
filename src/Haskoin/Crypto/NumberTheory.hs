@@ -1,4 +1,4 @@
-module NumberTheory
+module Haskoin.Crypto.NumberTheory
 ( extendedModGCD
 , mulInverse
 ) where

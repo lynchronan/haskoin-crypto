@@ -1,4 +1,4 @@
-module Ring.Tests (tests) where
+module Haskoin.Crypto.Ring.Tests (tests) where
 
 import Test.QuickCheck.Property hiding ((.&.))
 import Test.Framework
@@ -15,12 +15,9 @@ import qualified Data.ByteString as BS
 
 import QuickCheckUtils
 
-import ECDSA
-import Point
-import Ring
-import NumberTheory
-import Util
-import Address
+import Haskoin.Crypto.Ring
+import Haskoin.Crypto.NumberTheory
+import Haskoin.Crypto.Util
 
 tests :: [Test]
 tests = 

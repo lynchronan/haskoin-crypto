@@ -8,9 +8,10 @@ import Control.Applicative ((<$>),(<*>))
 
 import qualified Data.ByteString as BS
 
-import Point
-import Ring
-import ECDSA
+import Haskoin.Crypto.Point
+import Haskoin.Crypto.Ring
+import Haskoin.Crypto.ECDSA
+import Haskoin.Crypto.Keys
 
 data Mod32
 type Test32  = Ring Mod32
@@ -28,10 +29,22 @@ instance Arbitrary Point where
         , (9, (flip mulPoint $ curveG) <$> (arbitrary :: Gen FieldN))
         ]
 
+instance Arbitrary PublicKey where
+    arbitrary = oneof
+        [ PublicKey  <$> (arbitrary :: Gen Point)
+        , PublicKeyU <$> (arbitrary :: Gen Point)
+        ]
+
+instance Arbitrary PrivateKey where
+    arbitrary = oneof
+        [ PrivateKey  <$> (fromInteger <$> choose (1, curveN-1))
+        , PrivateKeyU <$> (fromInteger <$> choose (1, curveN-1))
+        ]
+
 instance Arbitrary Signature where
     arbitrary = do
         i <- arbitrary :: Gen Integer
-        d <- arbitrary :: Gen PrivateKey
+        d <- arbitrary :: Gen FieldN
         h <- arbitrary :: Gen Hash256
         let d' = if d == 0 then 1 else d
         return $ runIdentity $ withECDSA i (signMessage h d')

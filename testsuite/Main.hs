@@ -12,7 +12,6 @@ import qualified Haskoin.Crypto.Keys.Tests (tests)
 import qualified Units (tests)
 
 main = defaultMain
---    ( Units.tests )
     (  Haskoin.Crypto.Ring.Tests.tests 
     ++ Haskoin.Crypto.Point.Tests.tests 
     ++ Haskoin.Crypto.ECDSA.Tests.tests 

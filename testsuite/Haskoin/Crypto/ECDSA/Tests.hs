@@ -37,13 +37,13 @@ tests =
 
 {- ECDSA Signatures -}
 
-signAndVerify :: Hash256 -> FieldN -> Integer -> Property
-signAndVerify msg d k = d > 0 ==> verifyMessage msg s q
-    where q = mulPoint d curveG
+signAndVerify :: Hash256 -> PrivateKey -> Integer -> Bool
+signAndVerify msg d k = verifyMessage msg s q
+    where q = derivePublicKey d
           s = runIdentity $ withECDSA k (signMessage msg d)
            
-uniqueSignatures :: Hash256 -> FieldN -> Integer -> Property
-uniqueSignatures msg d k = d > 0 ==> r /= r' && s /= s'
+uniqueSignatures :: Hash256 -> PrivateKey -> Integer -> Bool
+uniqueSignatures msg d k = r /= r' && s /= s'
     where ((r,s),(r',s')) = runIdentity $ withECDSA k $ do
             (Signature a b) <- signMessage msg d
             (Signature c d) <- signMessage msg d

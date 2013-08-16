@@ -17,6 +17,7 @@ import QuickCheckUtils
 import Haskoin.Crypto.Keys
 import Haskoin.Crypto.Point
 import Haskoin.Crypto.Util
+import Haskoin.Crypto.Ring
 
 tests :: [Test]
 tests = 
@@ -26,6 +27,15 @@ tests =
         ],
       testGroup "Key formats"
         [ testProperty "fromWIF( toWIF(i) ) = i" fromToWIF
+        ],
+      testGroup "Key compression"
+        [ testProperty "Compressed public key" testCompressed
+        , testProperty "Uncompressed public key" testUnCompressed
+        , testProperty "Compressed private key" testPrivateCompressed
+        , testProperty "Uncompressed private key" testPrivateUnCompressed
+        ],
+      testGroup "Public Key"
+        [ testProperty "Derived public key valid" testDerivedPublicKey
         ]
     ]
 
@@ -48,5 +58,24 @@ fromToWIF :: PrivateKey -> Property
 fromToWIF pk = i > 0 ==> pk == (fromJust $ fromWIF $ toWIF pk)
     where i = runPrivateKey pk
 
+{- Key Compression -}
 
+testCompressed :: FieldN -> Property
+testCompressed n = n > 0 ==> 
+    isCompressed $ derivePublicKey $ makePrivateKey (fromIntegral n)
+
+testUnCompressed :: FieldN -> Property
+testUnCompressed n = n > 0 ==> 
+    not $ isCompressed $ derivePublicKey $ makePrivateKeyU (fromIntegral n)
+
+testPrivateCompressed :: FieldN -> Property
+testPrivateCompressed n = n > 0 ==> 
+    isPrivateKeyCompressed $ makePrivateKey (fromIntegral n)
+
+testPrivateUnCompressed :: FieldN -> Property
+testPrivateUnCompressed n = n > 0 ==> 
+    not $ isPrivateKeyCompressed $ makePrivateKeyU (fromIntegral n)
+
+testDerivedPublicKey :: PrivateKey -> Bool
+testDerivedPublicKey k = validatePublicKey $ derivePublicKey k
 

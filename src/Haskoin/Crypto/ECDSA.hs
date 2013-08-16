@@ -28,7 +28,7 @@ import Control.Monad.State
 import qualified Data.ByteString as BS (length)
 
 import Haskoin.Crypto.Hash (doubleHash256)
-import Haskoin.Crypto.Keys (PrivateKey, curveG)
+import Haskoin.Crypto.Keys (PrivateKey(..), PublicKey(..), curveG)
 import Haskoin.Crypto.Util 
     ( toStrictBS
     , isolate
@@ -128,12 +128,13 @@ genKeyPair = do
 -- Safely sign a message inside the ECDSA monad.
 -- ECDSA monad will generate a new nonce for each signature
 -- Section 4.1.3 http://www.secg.org/download/aid-780/sec1-v2.pdf
-signMessage :: Monad m => Hash256 -> FieldN -> ECDSA m Signature
-signMessage _ 0 = error "Integer 0 is an invalid private key"
+signMessage :: Monad m => Hash256 -> PrivateKey -> ECDSA m Signature
+signMessage _ (PrivateKey  0) = error "Integer 0 is an invalid private key"
+signMessage _ (PrivateKeyU 0) = error "Integer 0 is an invalid private key"
 signMessage h d = do
     -- 4.1.3.1
     (k,p) <- genKeyPair
-    case unsafeSignMessage h d (k,p) of
+    case unsafeSignMessage h (runPrivateKey d) (k,p) of
         (Just sig) -> return sig
         -- If signing failed, retry with a new nonce
         Nothing    -> signMessage h d
@@ -161,7 +162,7 @@ unsafeSignMessage h d (k,p) = do
     return $ Signature r s
 
 -- Section 4.1.4 http://www.secg.org/download/aid-780/sec1-v2.pdf
-verifyMessage :: Hash256 -> Signature -> Point -> Bool
+verifyMessage :: Hash256 -> Signature -> PublicKey -> Bool
 -- 4.1.4.1 (r and s can not be zero)
 verifyMessage _ (Signature 0 _) _ = False
 verifyMessage _ (Signature _ 0) _ = False
@@ -177,5 +178,5 @@ verifyMessage h (Signature r s) q =
         u1 = e/s
         u2 = r/s
         -- 4.1.4.5 (u1*G + u2*q)
-        p  = shamirsTrick u1 curveG u2 q
+        p  = shamirsTrick u1 curveG u2 (runPublicKey q)
 

@@ -3,6 +3,7 @@ module Haskoin.Crypto.Keys
 , PrivateKey(..)
 , derivePublicKey
 , publicKeyAddress
+, validatePublicKey
 , makePrivateKey
 , makePrivateKeyU
 , isCompressed
@@ -39,6 +40,7 @@ import Haskoin.Crypto.Point
     , mulPoint 
     , getAffine
     , curveB
+    , validatePoint
     )
 import Haskoin.Crypto.Base58 (encodeBase58Check, decodeBase58Check)
 import Haskoin.Crypto.Hash (hash160BS, hash256BS)
@@ -69,6 +71,9 @@ derivePublicKey :: PrivateKey -> PublicKey
 derivePublicKey k = case k of
     (PrivateKey  d) -> PublicKey  $ mulPoint d curveG
     (PrivateKeyU d) -> PublicKeyU $ mulPoint d curveG
+
+validatePublicKey :: PublicKey -> Bool
+validatePublicKey = validatePoint . runPublicKey
 
 -- Integer needs to be a random number with at least 256 bits of entropy
 makePrivateKey :: Integer -> PrivateKey

@@ -4,6 +4,7 @@ module Haskoin.Crypto.Util
 , isolate
 , integerToBS
 , bsToInteger
+, stringToBS
 ) where
 
 import Data.Word (Word8)
@@ -25,6 +26,7 @@ import qualified Data.ByteString as BS
     )
 import Data.Bits ((.|.), shiftL, shiftR)
 import Data.List (unfoldr)
+import Data.Char (ord)
 
 toStrictBS :: BL.ByteString -> BS.ByteString
 toStrictBS = BS.concat . BL.toChunks
@@ -43,6 +45,9 @@ integerToBS i
     | otherwise = error "integerToBS not defined for negative values"
     where f 0 = Nothing
           f x = Just $ (fromInteger x :: Word8, x `shiftR` 8)
+
+stringToBS :: String -> BS.ByteString
+stringToBS s = BS.pack $ map (fromIntegral . ord) s
 
 -- Isolate a Get monad for the next Int bytes
 -- Fails if the input monad failed or some input was not consumed

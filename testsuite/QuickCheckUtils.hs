@@ -30,10 +30,7 @@ instance Arbitrary Point where
         ]
 
 instance Arbitrary PublicKey where
-    arbitrary = oneof
-        [ PublicKey  <$> (arbitrary :: Gen Point)
-        , PublicKeyU <$> (arbitrary :: Gen Point)
-        ]
+    arbitrary = derivePublicKey <$> (arbitrary :: Gen PrivateKey)
 
 instance Arbitrary PrivateKey where
     arbitrary = oneof
@@ -44,10 +41,9 @@ instance Arbitrary PrivateKey where
 instance Arbitrary Signature where
     arbitrary = do
         i <- arbitrary :: Gen Integer
-        d <- arbitrary :: Gen FieldN
+        d <- arbitrary :: Gen PrivateKey
         h <- arbitrary :: Gen Hash256
-        let d' = if d == 0 then 1 else d
-        return $ runIdentity $ withECDSA i (signMessage h d')
+        return $ runIdentity $ withECDSA i (signMessage h d)
 
 -- from Data.ByteString project
 instance Arbitrary BS.ByteString where

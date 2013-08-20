@@ -30,7 +30,7 @@ curveB = fromInteger 0x07
     InfPoint is the point at infinity
 -}
 
-data Point = Point FieldP FieldP FieldP | InfPoint
+data Point = Point !FieldP !FieldP !FieldP | InfPoint
     deriving Show
 
 instance Eq Point where

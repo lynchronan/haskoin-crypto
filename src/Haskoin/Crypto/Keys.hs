@@ -52,8 +52,8 @@ curveG = fromJust $ makePoint
         0X483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8 
 
 data PublicKey =
-        PublicKey { runPublicKey :: Point } | -- default is Compressed
-        PublicKeyU { runPublicKey :: Point }  -- Uncompressed is explicit
+        PublicKey { runPublicKey :: !Point } | -- default is Compressed
+        PublicKeyU { runPublicKey :: !Point }  -- Uncompressed is explicit
         deriving Show
 
 instance Eq PublicKey where
@@ -63,8 +63,8 @@ instance Eq PublicKey where
     a == b = (runPublicKey a) == (runPublicKey b)
 
 data PrivateKey =
-        PrivateKey { runPrivateKey :: FieldN } | -- default is Compressed
-        PrivateKeyU { runPrivateKey :: FieldN }  -- Uncompressed is explicit
+        PrivateKey { runPrivateKey :: !FieldN } | -- default is Compressed
+        PrivateKeyU { runPrivateKey :: !FieldN }  -- Uncompressed is explicit
         deriving (Show, Eq)
 
 derivePublicKey :: PrivateKey -> PublicKey

@@ -50,3 +50,18 @@ Test-Suite test-haskoin-crypto
     hs-source-dirs:    testsuite, src
     ghc-options:       -O2
 
+Benchmark bench-haskoin-crypto
+    type:              exitcode-stdio-1.0
+    main-is:           Main.hs
+    build-depends:     base ==4.6.*, 
+                       containers ==0.5.*,
+                       mtl ==2.1.*, 
+                       binary ==0.7.*, 
+                       bytestring ==0.10.*, 
+                       cryptohash ==0.9.*,
+                       time ==1.4.*,
+                       random ==1.0.*
+    hs-source-dirs:    src, benchmark
+    ghc-options:       -O2 
+    ghc-prof-options:  -auto-all -with-rtsopts=-p
+

@@ -27,7 +27,7 @@ import Control.Monad.State
 
 import qualified Data.ByteString as BS (length)
 
-import Haskoin.Crypto.Hash (doubleHash256)
+import Haskoin.Crypto.Hash (hash256)
 import Haskoin.Crypto.Keys (PrivateKey(..), PublicKey(..), curveG)
 import Haskoin.Crypto.Util 
     ( toStrictBS
@@ -72,7 +72,7 @@ instance Monad m => Monad (ECDSA m) where
 instance MonadTrans ECDSA where
     lift = ECDSA . lift -- Lift over the StateT monad
 
-data Signature = Signature { sigR :: FieldN, sigS :: FieldN }
+data Signature = Signature { sigR :: !FieldN, sigS :: !FieldN }
     deriving (Show, Eq)
 
 instance B.Binary Signature where
@@ -111,7 +111,7 @@ getNextNonce = ECDSA $ do
         then return nonce 
         else runECDSA getNextNonce
     where 
-        hash = toFieldN . doubleHash256 . toBS
+        hash = toFieldN . hash256 . toBS
         toBS = integerToBS . toInteger
 
 -- Build a private/public key pair from the ECDSA monad random nonce

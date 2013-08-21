@@ -36,10 +36,10 @@ data Point = Point !FieldP !FieldP !FieldP | InfPoint
 instance Eq Point where
     InfPoint         == InfPoint         = True
     (Point x1 y1 z1) == (Point x2 y2 z2) = a == b && c == d
-        where a = x1*z2 ^ (2 :: Integer)
-              b = x2*z1 ^ (2 :: Integer)
-              c = y1*z2 ^ (3 :: Integer)
-              d = y2*z1 ^ (3 :: Integer)
+        where a = x1*z2 ^ (2 :: Int)
+              b = x2*z1 ^ (2 :: Int)
+              c = y1*z2 ^ (3 :: Int)
+              d = y2*z1 ^ (3 :: Int)
     _                == _                = False
 
 -- Create a new point from (x,y) coordinates.
@@ -58,7 +58,7 @@ getAffine :: Point -> Maybe (FieldP, FieldP)
 getAffine point = case point of
     InfPoint      -> Nothing
     (Point _ _ 0) -> Nothing
-    (Point x y z) -> Just (x/z ^ (2 :: Integer), y/z ^ (3 :: Integer))
+    (Point x y z) -> Just (x/z ^ (2 :: Int), y/z ^ (3 :: Int))
 
 getX :: Point -> Maybe FieldP
 getX point = fst <$> (getAffine point)
@@ -73,7 +73,7 @@ validatePoint point = case getAffine point of
     -- 3.2.2.1.1 (check that point not equal to InfPoint)
     Nothing    -> False 
     -- 3.2.2.1.2 (check that the point lies on the curve)
-    Just (x,y) -> y ^ (2 :: Integer) == x ^ (3 :: Integer) + curveB
+    Just (x,y) -> y ^ (2 :: Int) == x ^ (3 :: Int) + curveB
 
 isInfPoint :: Point -> Bool
 isInfPoint InfPoint      = True
@@ -87,14 +87,14 @@ addPoint point InfPoint = point
 addPoint p1@(Point x1 y1 z1) (Point x2 y2 z2)
     | u1 == u2 = if s1 == s2 then doublePoint p1 else InfPoint
     | otherwise = Point x3 y3 z3
-    where u1 = x1*z2 ^ (2 :: Integer)
-          u2 = x2*z1 ^ (2 :: Integer)
-          s1 = y1*z2 ^ (3 :: Integer)
-          s2 = y2*z1 ^ (3 :: Integer)
+    where u1 = x1*z2 ^ (2 :: Int)
+          u2 = x2*z1 ^ (2 :: Int)
+          s1 = y1*z2 ^ (3 :: Int)
+          s2 = y2*z1 ^ (3 :: Int)
           h  = u2 - u1
           r  = s2 - s1
-          x3 = r ^ (2 :: Integer) - h ^ (3 :: Integer) - 2*u1*h ^ (2 :: Integer) 
-          y3 = r*(u1 * h ^ (2 :: Integer) - x3) - s1 * h ^ (3 :: Integer)
+          x3 = r ^ (2 :: Int) - h ^ (3 :: Int) - 2*u1*h ^ (2 :: Int) 
+          y3 = r*(u1 * h ^ (2 :: Int) - x3) - s1 * h ^ (3 :: Int)
           z3 = h * z1 * z2
 
 -- Elliptic curve point doubling 
@@ -103,25 +103,23 @@ doublePoint InfPoint = InfPoint
 doublePoint (Point x y z)
     | y == 0 = InfPoint
     | otherwise = Point x' y' z'
-    where s  = 4*x*y ^ (2 :: Integer)
-          m  = 3*x ^ (2 :: Integer) 
-          x' = m ^ (2 :: Integer) - 2*s
-          y' = m*(s - x') - 8*y ^ (4 :: Integer)
+    where s  = 4*x*y ^ (2 :: Int)
+          m  = 3*x ^ (2 :: Int) 
+          x' = m ^ (2 :: Int) - 2*s
+          y' = m*(s - x') - 8*y ^ (4 :: Int)
           z' = 2*y*z
 
--- Elliptic curve point multiplication using Montgomery ladder
--- Todo: Check if Haskell lazy evaluation opens up side channel attacks
+-- Elliptic curve point multiplication
 mulPoint :: FieldN -> Point -> Point
 mulPoint 0 _        = InfPoint
 mulPoint 1 p        = p
 mulPoint _ InfPoint = InfPoint
-mulPoint n p = go InfPoint p ((bitSize n) - 1)
-    where go r0 r1 i
-            | i < 0       = r0
-            | testBit n i = go (addPoint r0 r1) (doublePoint r1) (i - 1)
-            | otherwise   = go (doublePoint r0) (addPoint r0 r1) (i - 1)
+mulPoint n p 
+    | n == 0    = InfPoint
+    | odd n     = addPoint p (mulPoint (n-1) p)
+    | otherwise = mulPoint (n `shiftR` 1) (doublePoint p)
 
--- Efficiently compute n1*p1 + n2*p2
+-- Efficiently compute r1*p1 + r2*p2
 shamirsTrick :: FieldN -> Point -> FieldN -> Point -> Point
 shamirsTrick r1 p1 r2 p2 = go r1 r2
     where q      = addPoint p1 p2

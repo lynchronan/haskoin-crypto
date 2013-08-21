@@ -44,6 +44,7 @@ import Haskoin.Crypto.Ring
     , FieldN
     , toFieldN
     , toMod256
+    , inverseN
     )
 
 type Nonce = FieldN
@@ -175,8 +176,9 @@ verifyMessage h (Signature r s) q =
         -- 4.1.4.2 / 4.1.4.3
         e  = toFieldN h
         -- 4.1.4.4
-        u1 = e/s
-        u2 = r/s
+        s' = inverseN s
+        u1 = e*s'
+        u2 = r*s'
         -- 4.1.4.5 (u1*G + u2*q)
         p  = shamirsTrick u1 curveG u2 (runPublicKey q)
 

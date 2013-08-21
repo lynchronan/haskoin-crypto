@@ -62,6 +62,6 @@ Benchmark bench-haskoin-crypto
                        time ==1.4.*,
                        random ==1.0.*
     hs-source-dirs:    src, benchmark
-    ghc-options:       -O2 
+    ghc-options:       -O4 
     ghc-prof-options:  -auto-all -with-rtsopts=-p
 

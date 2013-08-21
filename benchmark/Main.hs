@@ -11,38 +11,64 @@ import Haskoin.Crypto.Keys
 import Haskoin.Crypto.Point
 import Haskoin.Crypto.Ring
 
-msg :: Hash256
-msg = fromInteger $ curveN - 10
+bench :: Int -> String -> IO a -> IO a
+bench n s f = do
+    start <- getCurrentTime
+    !r <- f
+    end <- getCurrentTime
+    let t = (diffUTCTime end start)
+    putStrLn $ "----------------------------"
+    putStrLn $ s ++ " (" ++ (show n) ++ " samples)"
+    putStrLn $ "Total time: " ++ (show t)
+    putStrLn $ "Op/sec    : " ++ (show $ (fromIntegral n)/t)
+    return r
 
 main = do
 
-    !priv <- replicateM 5000 $ 
+    bench (10^7) "Ring multiplication (mod n)" (return $ testRing (10^7))
+    bench (10^5) "Ring inversion (mod n)" (return $ invRing (10^5))
+
+    let elems = 2000
+        msg   = fromInteger $ curveN - 10
+
+    !priv <- replicateM elems $
                 makePrivateKey <$> getStdRandom (randomR (1, curveN))
 
-    startA <- getCurrentTime
-    !pub <- mapM (\x -> return $! derivePublicKey x) priv
-    endA <- getCurrentTime
+    !pub <- bench elems "Point multiplications" $ forM priv $ \x -> 
+        return $! derivePublicKey x
 
-    let tA = (diffUTCTime endA startA)
-    putStrLn $ "5000 point multiplications took: " ++ show tA
-    putStrLn $ "Point multiplications per second: " ++ (show $ 5000/tA)
+    bench 100000 "Point additions" $ 
+        forM (take 100000 $ cycle pub) $ \x -> do
+            let !a = runPublicKey x
+            return $! addPoint a a
 
-    startB <- getCurrentTime
-    !sigs <- withECDSA 1 $ mapM (signMessage msg) priv
-    endB <- getCurrentTime
+    bench 100000 "Point doubling" $ 
+        forM (take 100000 $ cycle pub) $ \x -> do
+            let !a = runPublicKey x
+            return $! doublePoint a
 
-    let tB = (diffUTCTime endB startB)
-    putStrLn $ "5000 signatures took: " ++ show tB
-    putStrLn $ "Signatures per second: " ++ (show $ 5000/tB)
+    bench elems "Shamirs trick" $ 
+        forM (priv `zip` pub) $ \(d,q) -> do
+            let !a = runPrivateKey d
+                !b = runPublicKey q
+            return $! shamirsTrick a b a b
 
-    let !zipped = sigs `zip` pub
+    !sigs <- bench elems "Signature creations" $ 
+        withECDSA 1 $! forM priv (signMessage msg) 
+        
+    bench elems "Signature verifications" $ 
+        forM (sigs `zip` pub) $ \(s,q) -> 
+            return $! verifyMessage msg s q
 
-    startC <- getCurrentTime
-    !val <- mapM (\(s,q) -> return $! verifyMessage msg s q) zipped
-    endC <- getCurrentTime
+testRing :: Int -> FieldN
+testRing max = go 2 0
+    where go i n
+            | n < max = go (i*i) (n + 1)
+            | otherwise = i
 
-    let tC = (diffUTCTime endC startC)
-    putStrLn $ "5000 verifications took: " ++ show tC
-    putStrLn $ "Verification per second: " ++ (show $ 5000/tC)
-    putStrLn $ "Verification status: " ++ (show $ and val)
+invRing :: Int -> FieldN
+invRing max = go 1 0
+    where go i n
+            | n < max = go ((inverseN i) + 1) (n + 1)
+            | otherwise = i
 

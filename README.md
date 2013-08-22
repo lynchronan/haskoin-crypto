@@ -6,7 +6,7 @@ Project Status: **Experimental**
 
 ## Description
 
-haskoin-crypto is a component of **haskoin**, an ecosystem of haskell libraries
+**haskoin-crypto** is a component of **haskoin**, an ecosystem of haskell libraries
 implementing the various parts of the bitcoin protocol. Specifically,
 haskoin-crypto provides the elliptic curve cryptography required for creating
 and validating bitcoin transactions. Only operations on the bitcoin-specific
@@ -27,18 +27,40 @@ which provides the following advantages:
 ## Synopsis
 
 ```haskell
-    -- seed is an Integer with at least 256 bits of entropy
+    import Haskoin.Crypto
+    import Haskoin.Crypto.Util
+    import Data.Binary
+    import Data.Binary.Put
+
     main :: IO ()
-    main = withECDSA seed $ do
-        sig <- signMessage (hash256 msg) privateKey
+    main = withECDSA seed $ do -- seed is an random Integer with 256 bit of entropy
+        let priv  = makePrivateKey privKey -- privKey is a random Integer with 256 bit of entropy
+            pub   = derivePublicKey priv
+            pubBS = runPut $ put pub
+            addr  = publicKeyAddress pub
+            wif   = toWIF priv
+            msg   = stringToBS "Hi There"
+        sig1 <- signMessage (hash256 msg) priv
+        sig2 <- signMessage (hash256 msg) priv
+        let ver1 = verifyMessage (hash256 msg) sig1 pub
+            ver2 = verifyMessage (hash256 msg) sig2 pub
 ```
 ## Usage
+
+All the types and functions in this section are exported by `Haskoin.Crypto`
+
+```haskell
+    import Haskoin.Crypto
+```
 
 ### Keys
 
 ```haskell
-    data PublicKey = PublicKey Point | PublicKeyU Point
-    data PrivateKey = PrivateKey FieldN | PrivateKeyU FieldN
+    data PublicKey  = PublicKey  Point | 
+                      PublicKeyU Point
+
+    data PrivateKey = PrivateKey  FieldN | 
+                      PrivateKeyU FieldN
 ```
 
 Public and private keys each have an associated data type. They each have two
@@ -90,7 +112,8 @@ You can derive a `PublicKey` from a `PrivateKey`:
     derivePublicKey :: PrivateKey -> PublicKey
 ```
 
-If you need to test whether you are dealing with a compressed or uncompressed key:
+If you need to test whether you are dealing with a compressed or uncompressed
+key:
 
 ```haskell
     isCompressed :: PublicKey -> Bool
@@ -127,36 +150,77 @@ format which is compatible with the reference Satoshi client:
     newtype ECDSA m a = ECDSA StateT Nonce m a
 ```
 
-The ECDSA monad provides a safe context in which to call `signMessage` for
-signature creations. `signMessage` calls within the ECDSA monad are guaranteed
-not to re-use the same *k* value. The ECDSA monad has an internal state
-containing the current *k* value. Whenever you ask for this value, it is hashed
-with SHA-256 and a new value is stored inside the ECDSA monad by hashing it a
-second time with SHA-256. This guarantees that the *k* value you are going to
-use for you signature is not stored anywhere and can not accidentally be
-re-used.
+The `ECDSA` monad provides a safe context in which to call `signMessage` for
+signature creations. `signMessage` calls within the `ECDSA` monad are
+guaranteed not to re-use the same *k* value. The `ECDSA` monad has an internal
+state containing the current *k* value. Whenever you ask for this value, it is
+hashed with SHA-256 and a new value is stored inside the `ECDSA` monad by
+hashing it a second time with SHA-256. This guarantees that the *k* value you
+are going to use for you signature is not stored anywhere and can not
+accidentally be re-used.
 
 ```haskell
     withECDSA :: Monad m => Integer -> ECDSA m a -> m a
 ```
 
-Runs an ECDSA monad by seeding it with the initial *k* value used for signature
-creation. This library doesn't provide the random number generator (RNG) for
-seeding the initial *k* value. You need to make sure you provide an Integer
-drawn from a random pool of at least 256 bits of entropy. 
+Runs an `ECDSA` monad by seeding it with the initial *k* value used for
+signature creation. This library doesn't provide the random number generator
+(RNG) for seeding the initial *k* value. You need to make sure you provide an
+Integer drawn from a random pool of at least 256 bits of entropy. 
 
 ```haskell
     data Signature = Signature FieldN FieldN
 ```
 
-Data type describing an ECDSA signature as a tuple (r,s), two Integers modulo
+Data type describing an `ECDSA` signature as a tuple (r,s), two Integers modulo
 the curve order N.
 
 ```haskell
     signMessage :: Monad m => Hash256 -> PrivateKey -> ECDSA m Signature
 ```
 
-You can call signMessage inside the ECDSA monad to safely sign a hashed message.
+You can call `signMessage` inside the `ECDSA` monad to safely sign a hashed message.
+
+### Digests
+
+The `Hash256` and `Hash160` data types represent hashes of either 256 or 160
+bit. They are essentially unsigned integers modulo 2^256 or modulo 2^160. They
+behave the same way as the `Word8`, `Word16`, `Word32` and `Word64` types of
+the `Data.Word` package.
+
+```haskell
+    type Hash256 = Ring Mod256
+    type Hash160 = Ring Mod160
+```
+
+The following digest functions are exported by the library
+
+```haskell
+    -- Single round of SHA-256
+    hash256 :: Data.ByteString -> Hash256
+    hash256BS :: Data.ByteString -> Data.ByteString
+
+    -- Single round of RIPEMD-160
+    hash160 :: Data.ByteString -> Hash160
+    hash160BS :: Data.ByteString -> Data.ByteString
+
+    -- Double round of SHA-256
+    doubleHash256 :: Data.ByteString -> Hash256
+    doubleHash256BS :: Data.ByteString -> Data.ByteString
+```
+
+A 32 bit checksum is represented as a `CheckSum32` data type
+
+```haskell
+    newtype CheckSum32 = CheckSum32 Word32
+```
+
+It implements the Data.Binary interface so you can serialize/de-serialize it
+easily. To compute a `CheckSum32`, use:
+
+```haskell
+    chksum32 :: BS.ByteString -> CheckSum32
+```
 
 ## Installing
 

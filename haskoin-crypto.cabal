@@ -5,7 +5,7 @@ name:                  haskoin-crypto
 version:               0.1.0.0
 synopsis:              Implementation of the Bitcoin cryptographic primitives in Haskell
 -- description:         
-homepage:              http://github.com/cpt-octofu/haskoin-crypto
+homepage:              http://github.com/plaprade/haskoin-crypto
 license:               PublicDomain
 license-file:          UNLICENSE
 author:                Philippe Laprade

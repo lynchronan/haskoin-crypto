@@ -194,7 +194,7 @@ format which is compatible with the reference Satoshi client:
 
 For more details on the WIF format, check out:
 
-[en.bitcoin.it/wiki/Wallet_import_format](en.bitcoin.it/wiki/Wallet_import_format)
+[en.bitcoin.it/wiki/Wallet_import_format](http://en.bitcoin.it/wiki/Wallet_import_format)
 
 ### ECDSA
 
